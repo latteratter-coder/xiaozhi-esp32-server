@@ -1,0 +1,111 @@
+<mxfile host="65bd71144e">
+    <diagram id="chat-report" name="聊天记录上报流程">
+        <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="800" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- 参与者 -->
+                <mxCell id="esp" value="ESP32 设备" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;size=40;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="30" width="120" height="720" as="geometry"/>
+                </mxCell>
+                <mxCell id="py" value="Python Server&#xa;(xiaozhi-server)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;size=40;" vertex="1" parent="1">
+                    <mxGeometry x="300" y="30" width="140" height="720" as="geometry"/>
+                </mxCell>
+                <mxCell id="jv" value="Java API&#xa;(manager-api)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;size=40;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="30" width="140" height="720" as="geometry"/>
+                </mxCell>
+                <mxCell id="db" value="MySQL" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontStyle=1;size=40;" vertex="1" parent="1">
+                    <mxGeometry x="800" y="30" width="100" height="720" as="geometry"/>
+                </mxCell>
+                <mxCell id="rd" value="Redis" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;size=40;" vertex="1" parent="1">
+                    <mxGeometry x="1000" y="30" width="100" height="720" as="geometry"/>
+                </mxCell>
+
+                <!-- 消息 1: ESP → Python -->
+                <mxCell id="m1" value="WebSocket 音频流" style="html=1;verticalAlign=bottom;endArrow=block;rounded=1;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="140" y="100" as="sourcePoint"/>
+                        <mxPoint x="370" y="100" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- Python 处理 -->
+                <mxCell id="note1" value="1. Opus 解码 → PCM → WAV&#xa;2. 根据 chatHistoryConf 决定&#xa;   是否携带音频&#xa;3. Base64 编码 WAV" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;align=left;spacingLeft=5;" vertex="1" parent="1">
+                    <mxGeometry x="240" y="120" width="220" height="80" as="geometry"/>
+                </mxCell>
+
+                <!-- 消息 2: Python → Java -->
+                <mxCell id="m2" value="POST /agent/chat-history/report&#xa;(server 过滤器鉴权)" style="html=1;verticalAlign=bottom;endArrow=block;rounded=1;strokeColor=#82b366;fontSize=10;" edge="1" parent="1">
+                    <mxGeometry x="-0.1" relative="1" as="geometry">
+                        <mxPoint x="370" y="220" as="sourcePoint"/>
+                        <mxPoint x="630" y="220" as="targetPoint"/>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- Java 处理 - DTO -->
+                <mxCell id="dto" value="上报 DTO:&#xa;macAddress / sessionId&#xa;chatType (1=用户 2=助手)&#xa;content / audioBase64&#xa;reportTime (秒时间戳)" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;spacingLeft=5;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="240" width="200" height="90" as="geometry"/>
+                </mxCell>
+
+                <!-- Java → MySQL: 查设备 -->
+                <mxCell id="m3" value="SELECT ai_device WHERE mac=?&#xa;LEFT JOIN ai_agent" style="html=1;verticalAlign=bottom;endArrow=block;rounded=1;strokeColor=#d6b656;fontSize=10;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="630" y="350" as="sourcePoint"/>
+                        <mxPoint x="850" y="350" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- 分支判断 -->
+                <mxCell id="cond" value="chatHistoryConf?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="380" width="140" height="60" as="geometry"/>
+                </mxCell>
+
+                <!-- 分支 = 2 -->
+                <mxCell id="b2-label" value="= 2 (文本+音频)" style="text;html=1;fontSize=10;fontColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="710" y="380" width="110" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="b2-a" value="INSERT ai_agent_chat_audio&#xa;(LONGBLOB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="780" y="410" width="190" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="b2-b" value="INSERT ai_agent_chat_history&#xa;(含 audioId)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="780" y="460" width="190" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- 分支 = 1 -->
+                <mxCell id="b1-label" value="= 1 (仅文本)" style="text;html=1;fontSize=10;fontColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="710" y="510" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="b1-a" value="INSERT ai_agent_chat_history&#xa;(audioId = null)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="780" y="530" width="190" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- 分支 = 0 -->
+                <mxCell id="b0-label" value="= 0 (不记录)" style="text;html=1;fontSize=10;fontColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="710" y="580" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="b0-a" value="跳过写入" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="780" y="600" width="100" height="30" as="geometry"/>
+                </mxCell>
+
+                <!-- Redis 更新 -->
+                <mxCell id="m-redis" value="SET lastConnectedAt" style="html=1;verticalAlign=bottom;endArrow=block;rounded=1;strokeColor=#d6b656;fontSize=10;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="630" y="660" as="sourcePoint"/>
+                        <mxPoint x="1050" y="660" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="m-device" value="UPDATE ai_device 连接信息" style="html=1;verticalAlign=bottom;endArrow=block;rounded=1;strokeColor=#d6b656;fontSize=10;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="630" y="690" as="sourcePoint"/>
+                        <mxPoint x="850" y="690" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- 连线 -->
+                <mxCell id="c1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="cond" target="b2-a" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

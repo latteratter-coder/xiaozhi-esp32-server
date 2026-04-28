@@ -1,0 +1,165 @@
+<mxfile host="65bd71144e">
+    <diagram id="module-overview" name="模块关系总览">
+        <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- agent 模块 -->
+                <mxCell id="agent-group" value="agent 模块（智能体/聊天/声纹/MCP）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontStyle=1;fontSize=14;spacingTop=5;container=1;collapsible=0;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="40" width="440" height="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="ac" value="AgentController&#xa;/agent/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="agent-group">
+                    <mxGeometry x="20" y="50" width="180" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="ahc" value="AgentChatHistoryController&#xa;/agent/chat-history/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="agent-group">
+                    <mxGeometry x="230" y="50" width="190" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="avp" value="AgentVoicePrintController&#xa;/agent/voice-print/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="agent-group">
+                    <mxGeometry x="20" y="110" width="180" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="amcp" value="AgentMcpAccessPointController&#xa;/agent/mcp/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="agent-group">
+                    <mxGeometry x="230" y="110" width="190" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="as" value="AgentService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d1f7;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="agent-group">
+                    <mxGeometry x="20" y="175" width="180" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="ahs" value="AgentChatHistoryBizService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d1f7;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="agent-group">
+                    <mxGeometry x="230" y="175" width="190" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="acss" value="AgentChatSummaryService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d1f7;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="agent-group">
+                    <mxGeometry x="20" y="225" width="180" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="ats" value="AgentTagService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d1f7;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="agent-group">
+                    <mxGeometry x="230" y="225" width="190" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="avps" value="AgentVoicePrintService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d1f7;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="agent-group">
+                    <mxGeometry x="20" y="275" width="180" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="amcps" value="AgentMcpAccessPointService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d1f7;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="agent-group">
+                    <mxGeometry x="230" y="275" width="190" height="35" as="geometry"/>
+                </mxCell>
+
+                <!-- llm 模块 -->
+                <mxCell id="llm-group" value="llm 模块（统一 LLM 调用）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontStyle=1;fontSize=14;spacingTop=5;container=1;collapsible=0;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="40" width="280" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="ls" value="LLMService 接口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="llm-group">
+                    <mxGeometry x="30" y="50" width="220" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="li" value="OpenAIStyleLLMServiceImpl" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe599;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="llm-group">
+                    <mxGeometry x="30" y="110" width="220" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- model 公共模块 -->
+                <mxCell id="mc" value="ModelConfigService&#xa;(model 公共模块)&#xa;Redis 缓存" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="600" y="280" width="200" height="60" as="geometry"/>
+                </mxCell>
+
+                <!-- timbre 模块 -->
+                <mxCell id="timbre-group" value="timbre 模块（TTS 音色）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=14;spacingTop=5;container=1;collapsible=0;" vertex="1" parent="1">
+                    <mxGeometry x="920" y="40" width="260" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="tc" value="TimbreController&#xa;/ttsVoice/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="timbre-group">
+                    <mxGeometry x="30" y="50" width="200" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="ts" value="TimbreService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b6d7a8;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="timbre-group">
+                    <mxGeometry x="30" y="110" width="200" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- voiceclone 模块 -->
+                <mxCell id="vc-group" value="voiceclone 模块（声音克隆）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontStyle=1;fontSize=14;spacingTop=5;container=1;collapsible=0;" vertex="1" parent="1">
+                    <mxGeometry x="920" y="280" width="260" height="210" as="geometry"/>
+                </mxCell>
+                <mxCell id="vcc" value="VoiceCloneController&#xa;/voiceClone/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="vc-group">
+                    <mxGeometry x="20" y="50" width="220" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="vrc" value="VoiceResourceController&#xa;/voiceResource/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="vc-group">
+                    <mxGeometry x="20" y="100" width="220" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="vcs" value="VoiceCloneService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ea9999;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="vc-group">
+                    <mxGeometry x="20" y="155" width="220" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- 连线 -->
+                <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;fontColor=#333333;fontSize=11;" edge="1" source="acss" target="ls" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                    <mxCell value="generateSummary&#xa;generateTitle" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#666666;" vertex="1" connectable="0" parent="e1">
+                        <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                    </mxCell>
+                </mxCell>
+                <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;fontSize=11;" edge="1" source="li" target="mc" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                    <mxCell value="getModelByIdFromCache" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#666666;" vertex="1" connectable="0" parent="e2">
+                        <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                    </mxCell>
+                </mxCell>
+                <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;fontSize=11;" edge="1" source="as" target="ts" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                    <mxCell value="getTimbreNameById" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#666666;" vertex="1" connectable="0" parent="e3">
+                        <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                    </mxCell>
+                </mxCell>
+                <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;fontSize=11;" edge="1" source="ts" target="vcs" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                    <mxCell value="getTrainSuccess&#xa;(克隆音色合并)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#666666;" vertex="1" connectable="0" parent="e4">
+                        <mxGeometry x="-0.1" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                    </mxCell>
+                </mxCell>
+                <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;fontSize=11;" edge="1" source="vcs" target="mc" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                    <mxCell value="getModelConfig" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#666666;" vertex="1" connectable="0" parent="e5">
+                        <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                    </mxCell>
+                </mxCell>
+
+                <!-- 外部依赖 -->
+                <mxCell id="ext-llm" value="OpenAI 兼容 API&#xa;DeepSeek / 通义 / Ollama" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="560" y="420" width="230" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext-vp" value="声纹服务" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="460" width="160" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext-hs" value="火山引擎&#xa;mega_tts API" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="920" y="550" width="200" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext-mcp" value="MCP Server&#xa;WebSocket JSON-RPC" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="300" y="460" width="200" height="70" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="e6" style="rounded=1;strokeColor=#666666;dashed=1;" edge="1" source="li" target="ext-llm" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                    <mxCell value="POST /chat/completions" style="edgeLabel;html=1;fontSize=10;fontColor=#999999;" vertex="1" connectable="0" parent="e6">
+                        <mxGeometry relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                    </mxCell>
+                </mxCell>
+                <mxCell id="e7" style="rounded=1;strokeColor=#666666;dashed=1;" edge="1" source="avps" target="ext-vp" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                    <mxCell value="register / identify" style="edgeLabel;html=1;fontSize=10;fontColor=#999999;" vertex="1" connectable="0" parent="e7">
+                        <mxGeometry relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                    </mxCell>
+                </mxCell>
+                <mxCell id="e8" style="rounded=1;strokeColor=#666666;dashed=1;" edge="1" source="vcs" target="ext-hs" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                    <mxCell value="audio/upload" style="edgeLabel;html=1;fontSize=10;fontColor=#999999;" vertex="1" connectable="0" parent="e8">
+                        <mxGeometry relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                    </mxCell>
+                </mxCell>
+                <mxCell id="e9" style="rounded=1;strokeColor=#666666;dashed=1;" edge="1" source="amcps" target="ext-mcp" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                    <mxCell value="tools/list" style="edgeLabel;html=1;fontSize=10;fontColor=#999999;" vertex="1" connectable="0" parent="e9">
+                        <mxGeometry relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                    </mxCell>
+                </mxCell>
+
+                <!-- 存储 -->
+                <mxCell id="mysql" value="MySQL&#xa;ai_agent / ai_agent_chat_history&#xa;ai_agent_chat_audio / ai_tts_voice&#xa;ai_voice_clone / ai_model_config" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#f5f5f5;strokeColor=#666666;size=10;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="580" width="260" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="redis" value="Redis&#xa;模型缓存 / 音色缓存&#xa;临时音频 UUID" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;size=10;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="360" y="580" width="200" height="90" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

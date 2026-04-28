@@ -1,0 +1,73 @@
+<mxfile host="65bd71144e">
+    <diagram id="agent-create" name="智能体创建流程">
+        <mxGraphModel dx="1100" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="700" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- 泳道 -->
+                <mxCell id="lane-fe" value="前端" style="shape=table;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;horizontal=0;" vertex="1" parent="1">
+                    <mxGeometry x="20" y="20" width="1340" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane-ctrl" value="AgentController" style="shape=table;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;horizontal=0;" vertex="1" parent="1">
+                    <mxGeometry x="20" y="100" width="1340" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane-svc" value="AgentServiceImpl" style="shape=table;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;horizontal=0;" vertex="1" parent="1">
+                    <mxGeometry x="20" y="180" width="1340" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane-db" value="MySQL" style="shape=table;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;horizontal=0;" vertex="1" parent="1">
+                    <mxGeometry x="20" y="380" width="1340" height="80" as="geometry"/>
+                </mxCell>
+
+                <!-- 流程节点 -->
+                <mxCell id="s1" value="POST /agent&#xa;(AgentCreateDTO)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="35" width="150" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2" value="createAgent(dto)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="115" width="150" height="45" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="s3" value="获取默认模板&#xa;getDefaultTemplate()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="210" width="160" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4" value="DTO → Entity 转换&#xa;- ID为空则生成UUID&#xa;- agentCode: AGT_ 前缀" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="260" y="200" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5" value="模板覆盖默认值&#xa;ASR/VAD/LLM/VLLM/TTS&#xa;音色/记忆模型/系统提示词" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="200" width="190" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6" value="设置 chatHistoryConf&#xa;无记忆→0 / 有记忆→2&#xa;设置 userId / creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="710" y="200" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6b" value="slmModelId 为空时&#xa;自动取已启用LLM&#xa;默认或第一个" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="710" y="280" width="180" height="50" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="s7" value="INSERT ai_agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="930" y="395" width="150" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="s8" value="批量创建 3 个系统插件映射&#xa;音乐 / 天气 / 新闻" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="930" y="280" width="190" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="s9" value="INSERT&#xa;ai_agent_plugin_mapping ×3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="1150" y="395" width="190" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="s10" value="返回 agentId" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="1180" y="35" width="130" height="45" as="geometry"/>
+                </mxCell>
+
+                <!-- 连线 -->
+                <mxCell id="a1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="s1" target="s2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="a2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="s2" target="s3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="a3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="s3" target="s4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="a4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="s4" target="s5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="a5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="s5" target="s6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="a5b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="s6" target="s6b" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="a6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="s6" target="s7" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="a7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="s7" target="s8" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="a8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="s8" target="s9" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="a9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;" edge="1" source="s9" target="s10" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

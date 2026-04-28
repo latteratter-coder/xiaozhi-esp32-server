@@ -1,0 +1,154 @@
+<mxfile host="65bd71144e">
+    <diagram id="llm-timbre" name="LLM 调用 + 音色系统">
+        <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- LLM 调用区域 -->
+                <mxCell id="llm-area" value="LLM 统一调用架构" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontStyle=1;fontSize=14;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="40" width="640" height="400" as="geometry"/>
+                </mxCell>
+
+                <!-- 调用方 -->
+                <mxCell id="caller-label" value="调用方" style="text;html=1;fontSize=12;fontStyle=5;fontColor=#666666;" vertex="1" parent="llm-area">
+                    <mxGeometry x="10" y="30" width="60" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="caller-summary" value="AgentChatSummaryService&#xa;generateAndSaveChatSummary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="llm-area">
+                    <mxGeometry x="20" y="60" width="200" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="caller-title" value="AgentChatHistoryBizService&#xa;generateTitle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="llm-area">
+                    <mxGeometry x="20" y="120" width="200" height="45" as="geometry"/>
+                </mxCell>
+
+                <!-- 模型选择 -->
+                <mxCell id="model-select" value="模型选择优先级" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontStyle=1;fontSize=11;container=1;collapsible=0;" vertex="1" parent="llm-area">
+                    <mxGeometry x="20" y="190" width="200" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="ms-1" value="① slmModelId (小模型)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="model-select">
+                    <mxGeometry x="10" y="30" width="180" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="ms-2" value="② 默认 LLM (isDefault=1)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="model-select">
+                    <mxGeometry x="10" y="60" width="180" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="ms-3" value="③ llmModelId (大模型)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="model-select">
+                    <mxGeometry x="10" y="90" width="180" height="25" as="geometry"/>
+                </mxCell>
+
+                <!-- LLMService -->
+                <mxCell id="llm-svc" value="LLMService 接口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe599;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="llm-area">
+                    <mxGeometry x="280" y="60" width="160" height="40" as="geometry"/>
+                </mxCell>
+                <!-- 方法列表 -->
+                <mxCell id="llm-methods" value="generateSummary(conv)&#xa;generateSummary(conv, template, modelId)&#xa;generateSummaryWithHistory(conv, history, tpl, mid)&#xa;generateTitle(conv, modelId)&#xa;isAvailable() / isAvailable(modelId)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe599;strokeColor=#d6b656;fontSize=9;align=left;spacingLeft=5;" vertex="1" parent="llm-area">
+                    <mxGeometry x="270" y="110" width="280" height="85" as="geometry"/>
+                </mxCell>
+
+                <!-- Impl -->
+                <mxCell id="llm-impl" value="OpenAIStyleLLMServiceImpl" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe599;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="llm-area">
+                    <mxGeometry x="300" y="220" width="200" height="35" as="geometry"/>
+                </mxCell>
+
+                <!-- HTTP请求构造 -->
+                <mxCell id="http-req" value="POST {base_url}/chat/completions&#xa;Authorization: Bearer {api_key}&#xa;Content-Type: application/json&#xa;&#xa;{&quot;model&quot;: &quot;xxx&quot;,&#xa; &quot;messages&quot;: [{&quot;role&quot;:&quot;user&quot;, &quot;content&quot;:&quot;prompt&quot;}],&#xa; &quot;temperature&quot;: 0.2,&#xa; &quot;max_tokens&quot;: 2000}" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=0.1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=9;align=left;spacingLeft=5;" vertex="1" parent="llm-area">
+                    <mxGeometry x="280" y="280" width="280" height="110" as="geometry"/>
+                </mxCell>
+
+                <!-- ModelConfigService -->
+                <mxCell id="mc-svc" value="ModelConfigService&#xa;getModelByIdFromCache&#xa;(Redis 缓存)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1;" vertex="1" parent="llm-area">
+                    <mxGeometry x="460" y="210" width="160" height="55" as="geometry"/>
+                </mxCell>
+
+                <!-- 连线 -->
+                <mxCell id="le1" style="rounded=1;" edge="1" source="caller-summary" target="llm-svc" parent="llm-area"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="le2" style="rounded=1;" edge="1" source="caller-title" target="llm-svc" parent="llm-area"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="le3" style="rounded=1;" edge="1" source="llm-svc" target="llm-methods" parent="llm-area"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="le4" style="rounded=1;" edge="1" source="llm-methods" target="llm-impl" parent="llm-area"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="le5" style="rounded=1;" edge="1" source="llm-impl" target="http-req" parent="llm-area"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="le6" style="rounded=1;strokeColor=#9673a6;" edge="1" source="llm-impl" target="mc-svc" parent="llm-area"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <!-- 错误处理备注 -->
+                <mxCell id="err-note" value="⚠ 错误处理&#xa;• 无重试机制&#xa;• 失败返回固定中文错误串&#xa;• isAvailable 仅检查配置非空" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=left;spacingLeft=5;" vertex="1" parent="llm-area">
+                    <mxGeometry x="460" y="290" width="170" height="80" as="geometry"/>
+                </mxCell>
+
+                <!-- =========== 音色系统区域 =========== -->
+                <mxCell id="timbre-area" value="音色系统架构" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=14;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="720" y="40" width="640" height="400" as="geometry"/>
+                </mxCell>
+
+                <!-- ai_tts_voice 表 -->
+                <mxCell id="tts-table" value="ai_tts_voice (普通音色)" style="shape=table;startSize=25;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=1;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="timbre-area">
+                    <mxGeometry x="20" y="50" width="250" height="165" as="geometry"/>
+                </mxCell>
+                <mxCell id="tf1" value="id (PK)" style="text;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=none;" vertex="1" parent="tts-table"><mxGeometry width="250" height="20" as="geometry"><mxRectangle width="250" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="tf2" value="tts_model_id (FK → ai_model_config)" style="text;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=none;" vertex="1" parent="tts-table"><mxGeometry y="20" width="250" height="20" as="geometry"><mxRectangle width="250" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="tf3" value="name / tts_voice (厂商编码)" style="text;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=none;" vertex="1" parent="tts-table"><mxGeometry y="40" width="250" height="20" as="geometry"><mxRectangle width="250" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="tf4" value="languages (逗号分隔)" style="text;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=none;" vertex="1" parent="tts-table"><mxGeometry y="60" width="250" height="20" as="geometry"><mxRectangle width="250" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="tf5" value="voice_demo (试听URL)" style="text;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=none;" vertex="1" parent="tts-table"><mxGeometry y="80" width="250" height="20" as="geometry"><mxRectangle width="250" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="tf6" value="reference_audio / reference_text" style="text;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=none;" vertex="1" parent="tts-table"><mxGeometry y="100" width="250" height="20" as="geometry"><mxRectangle width="250" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="tf7" value="sort (排序)" style="text;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=none;" vertex="1" parent="tts-table"><mxGeometry y="120" width="250" height="20" as="geometry"><mxRectangle width="250" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+
+                <!-- ai_voice_clone 表 -->
+                <mxCell id="clone-table" value="ai_voice_clone (克隆音色)" style="shape=table;startSize=25;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=1;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="timbre-area">
+                    <mxGeometry x="340" y="50" width="280" height="185" as="geometry"/>
+                </mxCell>
+                <mxCell id="cf1" value="id (PK)" style="text;html=1;fontSize=10;fillColor=#f8cecc;strokeColor=none;" vertex="1" parent="clone-table"><mxGeometry width="280" height="20" as="geometry"><mxRectangle width="280" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="cf2" value="model_id (FK → ai_model_config)" style="text;html=1;fontSize=10;fillColor=#f8cecc;strokeColor=none;" vertex="1" parent="clone-table"><mxGeometry y="20" width="280" height="20" as="geometry"><mxRectangle width="280" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="cf3" value="name / voice_id (火山 speaker_id)" style="text;html=1;fontSize=10;fillColor=#f8cecc;strokeColor=none;" vertex="1" parent="clone-table"><mxGeometry y="40" width="280" height="20" as="geometry"><mxRectangle width="280" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="cf4" value="voice (LONGBLOB, 训练音频 ≤10MB)" style="text;html=1;fontSize=10;fillColor=#f8cecc;strokeColor=none;fontStyle=1;fontColor=#b85450;" vertex="1" parent="clone-table"><mxGeometry y="60" width="280" height="20" as="geometry"><mxRectangle width="280" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="cf5" value="train_status (0待训练/1训练中/2成功/3失败)" style="text;html=1;fontSize=10;fillColor=#f8cecc;strokeColor=none;" vertex="1" parent="clone-table"><mxGeometry y="80" width="280" height="20" as="geometry"><mxRectangle width="280" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+                <mxCell id="cf6" value="train_error / user_id / languages" style="text;html=1;fontSize=10;fillColor=#f8cecc;strokeColor=none;" vertex="1" parent="clone-table"><mxGeometry y="100" width="280" height="20" as="geometry"><mxRectangle width="280" height="20" as="alternateBounds"/></mxGeometry></mxCell>
+
+                <!-- getVoiceNames 合并逻辑 -->
+                <mxCell id="merge-label" value="getVoiceNames() 合并逻辑" style="text;html=1;fontSize=12;fontStyle=5;fontColor=#333333;" vertex="1" parent="timbre-area">
+                    <mxGeometry x="20" y="245" width="200" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="merge-flow" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;container=1;collapsible=0;" vertex="1" parent="timbre-area">
+                    <mxGeometry x="20" y="270" width="600" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="mf1" value="查 ai_tts_voice&#xa;WHERE tts_model_id=?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="merge-flow">
+                    <mxGeometry x="10" y="10" width="140" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="mf2" value="转 VoiceDTO[]&#xa;isClone = false" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="merge-flow">
+                    <mxGeometry x="170" y="10" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="mf3" value="查 ai_voice_clone&#xa;WHERE model_id=?&#xa;AND user_id=?&#xa;AND train_status=2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="merge-flow">
+                    <mxGeometry x="10" y="60" width="140" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="mf4" value="转 VoiceDTO[]&#xa;isClone = true&#xa;name 加 '克隆-' 前缀" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="merge-flow">
+                    <mxGeometry x="170" y="60" width="140" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="mf5" value="合并列表&#xa;克隆音色插入最前面" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1;" vertex="1" parent="merge-flow">
+                    <mxGeometry x="340" y="30" width="140" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="mf6" value="返回&#xa;List&lt;VoiceDTO&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;fontStyle=1;" vertex="1" parent="merge-flow">
+                    <mxGeometry x="510" y="30" width="80" height="50" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="mfe1" style="rounded=1;" edge="1" source="mf1" target="mf2" parent="merge-flow"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="mfe2" style="rounded=1;" edge="1" source="mf3" target="mf4" parent="merge-flow"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="mfe3" style="rounded=1;" edge="1" source="mf2" target="mf5" parent="merge-flow"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="mfe4" style="rounded=1;" edge="1" source="mf4" target="mf5" parent="merge-flow"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="mfe5" style="rounded=1;" edge="1" source="mf5" target="mf6" parent="merge-flow"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <!-- ConfigService 音色查找 -->
+                <mxCell id="config-note" value="ConfigService 音色下发查找链：&#xa;① 查 ai_tts_voice (ttsVoiceId)&#xa;② 找不到→查 ai_voice_clone&#xa;③ 火山双流 + S_ 开头→设置 resource_id" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;spacingLeft=5;" vertex="1" parent="1">
+                    <mxGeometry x="720" y="500" width="280" height="80" as="geometry"/>
+                </mxCell>
+
+                <!-- 外部 API -->
+                <mxCell id="ext-api" value="OpenAI 兼容 API&#xa;DeepSeek / 通义千问&#xa;Ollama / 自部署" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="500" width="220" height="80" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="ext-e1" style="rounded=1;strokeColor=#d6b656;dashed=1;strokeWidth=2;" edge="1" source="http-req" target="ext-api" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                    <mxCell value="POST /chat/completions" style="edgeLabel;html=1;fontSize=10;fontColor=#999999;" vertex="1" connectable="0" parent="ext-e1">
+                        <mxGeometry relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                    </mxCell>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

@@ -1,0 +1,192 @@
+<mxfile host="65bd71144e">
+    <diagram id="agent-arch" name="xiaozhi-server Agent 架构">
+        <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- 标题 -->
+                <mxCell id="title" value="xiaozhi-server Agent 完整架构" style="text;html=1;fontSize=20;fontStyle=1;fillColor=none;align=center;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="10" width="500" height="30" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== 设备层 ===== -->
+                <mxCell id="device" value="ESP32 设备" style="shape=mxgraph.cisco.computers_and_peripherals.pc;html=1;fillColor=#036897;strokeColor=#ffffff;fontSize=12;fontColor=#333333;fontStyle=1;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="80" width="60" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== WebSocket 层 ===== -->
+                <mxCell id="ws-box" value="WebSocket Server (Port 8000)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="200" y="80" width="230" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== 语音处理流水线 ===== -->
+                <mxCell id="pipeline" value="语音处理流水线" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="200" y="150" width="800" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="vad" value="VAD&#xa;语音活动检测" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="pipeline">
+                    <mxGeometry x="10" y="35" width="100" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="asr" value="ASR&#xa;语音识别→文字" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="pipeline">
+                    <mxGeometry x="130" y="35" width="110" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="intent" value="意图判断&#xa;nointent / function_call&#xa;/ intent_llm" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="pipeline">
+                    <mxGeometry x="260" y="35" width="140" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="tts-box" value="TTS&#xa;文字→语音" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="pipeline">
+                    <mxGeometry x="580" y="35" width="100" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="opus" value="Opus 编码&#xa;→ 回传设备" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="pipeline">
+                    <mxGeometry x="695" y="35" width="95" height="45" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="pe1" style="rounded=1;" edge="1" source="vad" target="asr" parent="pipeline"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="pe2" style="rounded=1;" edge="1" source="asr" target="intent" parent="pipeline"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="pe5" style="rounded=1;" edge="1" source="tts-box" target="opus" parent="pipeline"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <!-- ===== Agent 核心（chat 递归） ===== -->
+                <mxCell id="agent-core" value="Agent 核心：chat(query, depth) 递归循环" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontStyle=1;fontSize=14;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="200" y="280" width="800" height="340" as="geometry"/>
+                </mxCell>
+
+                <!-- 对话管理 -->
+                <mxCell id="dialogue" value="Dialogue 对话管理&#xa;(系统提示词 + 历史消息 + 记忆)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1;" vertex="1" parent="agent-core">
+                    <mxGeometry x="10" y="40" width="220" height="45" as="geometry"/>
+                </mxCell>
+
+                <!-- LLM 调用 -->
+                <mxCell id="llm-call" value="LLM 流式调用&#xa;response_with_functions()&#xa;（带工具描述）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="agent-core">
+                    <mxGeometry x="270" y="35" width="200" height="55" as="geometry"/>
+                </mxCell>
+
+                <!-- CoT 过滤 -->
+                <mxCell id="cot-filter" value="CoT 过滤&#xa;遇 &lt;think&gt; 暂停输出&#xa;遇 &lt;/think&gt; 恢复输出&#xa;（兼容 DeepSeek-R1 等）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="agent-core">
+                    <mxGeometry x="510" y="30" width="160" height="65" as="geometry"/>
+                </mxCell>
+
+                <!-- LLM 决策分支 -->
+                <mxCell id="decision" value="LLM 自主决策" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="agent-core">
+                    <mxGeometry x="310" y="120" width="130" height="60" as="geometry"/>
+                </mxCell>
+
+                <!-- 分支1: 纯文本 -->
+                <mxCell id="text-out" value="纯文本回答&#xa;逐 token → TTS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="agent-core">
+                    <mxGeometry x="530" y="120" width="120" height="45" as="geometry"/>
+                </mxCell>
+
+                <!-- 分支2: tool_calls -->
+                <mxCell id="tool-calls" value="返回 tool_calls&#xa;（工具名 + 参数）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="agent-core">
+                    <mxGeometry x="120" y="130" width="140" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- 工具执行 -->
+                <mxCell id="tool-exec" value="并发执行工具&#xa;func_handler.handle_llm_function_call&#xa;（超时 30s）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="agent-core">
+                    <mxGeometry x="30" y="200" width="230" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- Action 判断 -->
+                <mxCell id="action-check" value="Action?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="agent-core">
+                    <mxGeometry x="310" y="200" width="110" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- REQLLM -->
+                <mxCell id="reqllm" value="REQLLM&#xa;结果写入对话&#xa;(role=tool)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="agent-core">
+                    <mxGeometry x="480" y="195" width="130" height="55" as="geometry"/>
+                </mxCell>
+
+                <!-- 递归 -->
+                <mxCell id="recurse" value="递归 chat(None, depth+1)&#xa;★ Agent 循环的核心 ★" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=5;strokeWidth=2;" vertex="1" parent="agent-core">
+                    <mxGeometry x="480" y="270" width="210" height="45" as="geometry"/>
+                </mxCell>
+
+                <!-- RESPONSE -->
+                <mxCell id="response-direct" value="RESPONSE&#xa;直接 TTS 回复" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="agent-core">
+                    <mxGeometry x="160" y="280" width="120" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- MAX_DEPTH -->
+                <mxCell id="max-depth" value="depth ≥ 5&#xa;注入[系统提示]&#xa;强制最终回答" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=9;fontStyle=2;" vertex="1" parent="agent-core">
+                    <mxGeometry x="700" y="270" width="90" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- Agent 内部连线 -->
+                <mxCell id="ae1" style="rounded=1;" edge="1" source="dialogue" target="llm-call" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="ae2" style="rounded=1;" edge="1" source="llm-call" target="cot-filter" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="ae3" style="rounded=1;" edge="1" source="llm-call" target="decision" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="ae4" value="纯文本" style="rounded=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;" edge="1" source="decision" target="text-out" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="ae5" value="tool_calls" style="rounded=1;strokeColor=#b85450;fontColor=#b85450;fontSize=10;" edge="1" source="decision" target="tool-calls" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="ae6" style="rounded=1;" edge="1" source="tool-calls" target="tool-exec" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="ae7" style="rounded=1;" edge="1" source="tool-exec" target="action-check" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="ae8" value="REQLLM" style="rounded=1;strokeColor=#d6b656;fontColor=#d6b656;fontSize=10;" edge="1" source="action-check" target="reqllm" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="ae9" style="rounded=1;strokeWidth=2;strokeColor=#d6b656;" edge="1" source="reqllm" target="recurse" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="ae10" value="RESPONSE" style="rounded=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;" edge="1" source="action-check" target="response-direct" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="ae11" style="rounded=1;dashed=1;strokeColor=#999999;" edge="1" source="recurse" target="max-depth" parent="agent-core"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <!-- 递归回连 -->
+                <mxCell id="ae12" value="回到 LLM" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#d6b656;dashed=1;fontColor=#d6b656;fontSize=10;" edge="1" source="recurse" target="llm-call" parent="agent-core">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="750" y="292"/>
+                            <mxPoint x="750" y="62"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- ===== 工具层 ===== -->
+                <mxCell id="tools-area" value="可用工具（5 类执行器）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="1080" y="280" width="300" height="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="t-plugin" value="SERVER_PLUGIN (内置)&#xa;天气 / 音乐 / 新闻&#xa;时间 / 退出 / 切换角色&#xa;RAGFlow / HA 控制" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;align=left;spacingLeft=5;" vertex="1" parent="tools-area">
+                    <mxGeometry x="15" y="40" width="270" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="t-mcp" value="SERVER_MCP (MCP 协议)&#xa;通过 MCP Server 动态加载工具&#xa;搜索 / 翻译 / 计算 等" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=9;align=left;spacingLeft=5;" vertex="1" parent="tools-area">
+                    <mxGeometry x="15" y="110" width="270" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="t-iot" value="DEVICE_IOT (设备 IoT)&#xa;灯 / 空调 / 窗帘 等" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;align=left;spacingLeft=5;" vertex="1" parent="tools-area">
+                    <mxGeometry x="15" y="170" width="270" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="t-dmcp" value="DEVICE_MCP (设备侧 MCP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="tools-area">
+                    <mxGeometry x="15" y="220" width="270" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="t-endpoint" value="MCP_ENDPOINT (Java下发)&#xa;管理后台配置的外部工具" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;align=left;spacingLeft=5;" vertex="1" parent="tools-area">
+                    <mxGeometry x="15" y="260" width="270" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== 外部 LLM API ===== -->
+                <mxCell id="llm-apis" value="LLM API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;dashed=1;" vertex="1" parent="1">
+                    <mxGeometry x="1080" y="80" width="300" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="api-ds" value="DeepSeek (V3 / R1)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="llm-apis">
+                    <mxGeometry x="15" y="35" width="130" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="api-qw" value="通义千问 / QwQ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="llm-apis">
+                    <mxGeometry x="155" y="35" width="130" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="api-ol" value="Ollama (本地)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="llm-apis">
+                    <mxGeometry x="15" y="75" width="130" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="api-gm" value="Gemini" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="llm-apis">
+                    <mxGeometry x="155" y="75" width="130" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="api-dify" value="Dify / FastGPT / Coze" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="llm-apis">
+                    <mxGeometry x="15" y="115" width="270" height="30" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== 跨层连线 ===== -->
+                <mxCell id="f1" value="音频流" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#6c8ebf;fontSize=10;" edge="1" source="device" target="ws-box" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="f2" style="rounded=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" source="ws-box" target="vad" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="f3" value="startToChat()" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#d6b656;fontSize=10;" edge="1" source="intent" target="dialogue" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="f4" value="token 流" style="rounded=1;strokeWidth=2;strokeColor=#82b366;fontSize=10;" edge="1" source="text-out" target="tts-box" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="f5" style="rounded=1;strokeWidth=2;strokeColor=#82b366;" edge="1" source="opus" target="device" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <mxCell id="f6" value="POST /chat/completions (stream)" style="rounded=1;strokeColor=#666666;dashed=1;fontSize=9;fontColor=#999999;" edge="1" source="llm-call" target="llm-apis" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="f7" value="执行工具" style="rounded=1;strokeColor=#b85450;strokeWidth=2;fontSize=10;" edge="1" source="tool-exec" target="tools-area" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <!-- Java 上报 -->
+                <mxCell id="java-box" value="manager-api (Java)&#xa;聊天记录存储 + LLM 总结" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=11;fontStyle=2;dashed=1;" vertex="1" parent="1">
+                    <mxGeometry x="200" y="660" width="250" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="f8" value="异步上报 POST /agent/chat-history/report" style="rounded=1;strokeColor=#999999;dashed=1;fontSize=9;fontColor=#999999;" edge="1" source="agent-core" target="java-box" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

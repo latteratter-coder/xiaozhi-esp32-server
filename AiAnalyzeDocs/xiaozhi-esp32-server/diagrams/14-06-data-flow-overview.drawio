@@ -1,0 +1,129 @@
+<mxfile host="65bd71144e">
+    <diagram id="data-flow" name="四模块数据流全景">
+        <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- ===== 设备端 ===== -->
+                <mxCell id="esp" value="ESP32 设备" style="shape=mxgraph.cisco.computers_and_peripherals.pc;html=1;fillColor=#036897;strokeColor=#ffffff;sketch=0;fontSize=12;fontColor=#333333;fontStyle=1;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="80" width="60" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== Python 服务 ===== -->
+                <mxCell id="py-group" value="Python Server (xiaozhi-server)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="200" y="40" width="200" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="py-ws" value="WebSocket Server&#xa;(Port 8000)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="py-group">
+                    <mxGeometry x="15" y="40" width="170" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="py-proc" value="语音处理&#xa;Opus→PCM→WAV→Base64" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="py-group">
+                    <mxGeometry x="15" y="85" width="170" height="35" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== Java 服务 ===== -->
+                <mxCell id="java-group" value="Java API (manager-api)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="30" width="620" height="350" as="geometry"/>
+                </mxCell>
+
+                <!-- agent 子模块 -->
+                <mxCell id="j-agent" value="agent 模块" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontStyle=1;fontSize=11;container=1;collapsible=0;" vertex="1" parent="java-group">
+                    <mxGeometry x="20" y="40" width="280" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-report" value="聊天上报&#xa;/agent/chat-history/report" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="j-agent">
+                    <mxGeometry x="10" y="30" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-summary" value="总结生成&#xa;/agent/chat-summary/save" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="j-agent">
+                    <mxGeometry x="145" y="30" width="125" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-vprint" value="声纹注册&#xa;/agent/voice-print" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="j-agent">
+                    <mxGeometry x="10" y="80" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-mcp" value="MCP 工具&#xa;/agent/mcp/tools" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="j-agent">
+                    <mxGeometry x="145" y="80" width="125" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-agent-crud" value="智能体 CRUD / 标签 / 级联删除" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="j-agent">
+                    <mxGeometry x="10" y="135" width="260" height="30" as="geometry"/>
+                </mxCell>
+
+                <!-- llm 子模块 -->
+                <mxCell id="j-llm" value="llm 模块" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontStyle=1;fontSize=11;container=1;collapsible=0;" vertex="1" parent="java-group">
+                    <mxGeometry x="320" y="40" width="140" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-llm-svc" value="OpenAI 风格调用&#xa;总结 + 标题" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe599;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="j-llm">
+                    <mxGeometry x="10" y="30" width="120" height="45" as="geometry"/>
+                </mxCell>
+
+                <!-- timbre 子模块 -->
+                <mxCell id="j-timbre" value="timbre 模块" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=11;container=1;collapsible=0;" vertex="1" parent="java-group">
+                    <mxGeometry x="480" y="40" width="120" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-timbre-svc" value="音色列表&#xa;/ttsVoice" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b6d7a8;strokeColor=#82b366;fontSize=10;" vertex="1" parent="j-timbre">
+                    <mxGeometry x="10" y="30" width="100" height="45" as="geometry"/>
+                </mxCell>
+
+                <!-- voiceclone 子模块 -->
+                <mxCell id="j-vc" value="voiceclone 模块" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontStyle=1;fontSize=11;container=1;collapsible=0;" vertex="1" parent="java-group">
+                    <mxGeometry x="320" y="150" width="280" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-vc-upload" value="上传音频&#xa;/voiceClone/upload" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ea9999;strokeColor=#b85450;fontSize=9;" vertex="1" parent="j-vc">
+                    <mxGeometry x="10" y="30" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-vc-clone" value="触发训练&#xa;/voiceClone/cloneAudio" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ea9999;strokeColor=#b85450;fontSize=9;" vertex="1" parent="j-vc">
+                    <mxGeometry x="150" y="30" width="120" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- 模块间调用线 -->
+                <mxCell id="je1" value="generateSummary" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;fontSize=9;fontColor=#999999;" edge="1" source="j-summary" target="j-llm-svc" parent="java-group"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="je2" value="getTrainSuccess" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;fontSize=9;fontColor=#999999;dashed=1;" edge="1" source="j-timbre-svc" target="j-vc-clone" parent="java-group"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <!-- ===== 外部服务 ===== -->
+                <mxCell id="ext-group" value="外部服务" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;dashed=1;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="430" width="620" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext-llm" value="LLM API&#xa;(DeepSeek/通义/Ollama)" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="ext-group">
+                    <mxGeometry x="20" y="30" width="180" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext-vp" value="声纹服务" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="ext-group">
+                    <mxGeometry x="220" y="30" width="120" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext-hs" value="火山引擎&#xa;mega_tts" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="ext-group">
+                    <mxGeometry x="360" y="30" width="130" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext-mcp" value="MCP Server" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="ext-group">
+                    <mxGeometry x="510" y="30" width="100" height="70" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== 存储层 ===== -->
+                <mxCell id="store-group" value="存储层" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="610" width="620" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="mysql" value="MySQL" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#f5f5f5;strokeColor=#666666;size=10;fontSize=12;fontStyle=1;" vertex="1" parent="store-group">
+                    <mxGeometry x="30" y="30" width="80" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="mysql-tables" value="ai_agent&#xa;ai_agent_chat_history&#xa;ai_agent_chat_audio (BLOB)&#xa;ai_tts_voice&#xa;ai_voice_clone (BLOB)&#xa;ai_model_config" style="text;html=1;fontSize=9;align=left;verticalAlign=top;" vertex="1" parent="store-group">
+                    <mxGeometry x="130" y="30" width="180" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="redis" value="Redis" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;size=10;fontSize=12;fontStyle=1;" vertex="1" parent="store-group">
+                    <mxGeometry x="350" y="30" width="80" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="redis-data" value="模型配置缓存&#xa;音色名称缓存&#xa;临时音频 UUID&#xa;lastConnectedAt" style="text;html=1;fontSize=9;align=left;verticalAlign=top;" vertex="1" parent="store-group">
+                    <mxGeometry x="450" y="30" width="130" height="70" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== 跨层连线 ===== -->
+                <mxCell id="flow1" value="WebSocket 音频流" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#6c8ebf;fontSize=10;" edge="1" source="esp" target="py-ws" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="flow2" value="HTTP 上报 (WAV)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#82b366;fontSize=10;" edge="1" source="py-proc" target="j-report" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <mxCell id="flow3" value="POST /chat/completions" style="rounded=1;strokeColor=#d6b656;dashed=1;fontSize=9;fontColor=#999999;" edge="1" source="j-llm-svc" target="ext-llm" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="flow4" value="register/identify" style="rounded=1;strokeColor=#6c8ebf;dashed=1;fontSize=9;fontColor=#999999;" edge="1" source="j-vprint" target="ext-vp" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="flow5" value="audio/upload" style="rounded=1;strokeColor=#b85450;dashed=1;fontSize=9;fontColor=#999999;" edge="1" source="j-vc-clone" target="ext-hs" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="flow6" value="JSON-RPC" style="rounded=1;strokeColor=#9673a6;dashed=1;fontSize=9;fontColor=#999999;" edge="1" source="j-mcp" target="ext-mcp" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <mxCell id="flow7" style="rounded=1;strokeColor=#666666;fontSize=9;" edge="1" source="j-report" target="mysql" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="flow8" style="rounded=1;strokeColor=#666666;fontSize=9;" edge="1" source="j-summary" target="mysql" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="flow9" style="rounded=1;strokeColor=#d6b656;fontSize=9;" edge="1" source="j-report" target="redis" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

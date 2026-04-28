@@ -1,0 +1,133 @@
+<mxfile host="65bd71144e">
+    <diagram id="voice-clone" name="声音克隆完整流程">
+        <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- 标题 -->
+                <mxCell id="title" value="声音克隆完整流程（4 个阶段）" style="text;html=1;fontSize=18;fontStyle=1;fillColor=none;align=center;" vertex="1" parent="1">
+                    <mxGeometry x="400" y="10" width="400" height="30" as="geometry"/>
+                </mxCell>
+
+                <!-- 阶段1: 管理员开通 -->
+                <mxCell id="phase1" value="阶段 ①  管理员开通资源" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="60" width="600" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-admin" value="管理员" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=10;" vertex="1" parent="phase1">
+                    <mxGeometry x="30" y="50" width="30" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-api" value="POST /voiceResource&#xa;{modelId, userId,&#xa; voiceIds:[&quot;S_xxx&quot;,&quot;S_yyy&quot;]}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;align=left;spacingLeft=5;" vertex="1" parent="phase1">
+                    <mxGeometry x="100" y="50" width="200" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-check" value="校验:&#xa;✓ 火山双流TTS模型&#xa;✓ voiceId 含 S_ 前缀&#xa;✓ 同model+voiceId不重复" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;align=left;spacingLeft=5;" vertex="1" parent="phase1">
+                    <mxGeometry x="330" y="40" width="190" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-db" value="INSERT ai_voice_clone ×N&#xa;trainStatus=0, voice=null" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="phase1">
+                    <mxGeometry x="330" y="130" width="200" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1-e1" style="rounded=1;" edge="1" source="p1-admin" target="p1-api" parent="phase1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p1-e2" style="rounded=1;" edge="1" source="p1-api" target="p1-check" parent="phase1"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p1-e3" style="rounded=1;" edge="1" source="p1-check" target="p1-db" parent="phase1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <!-- 阶段2: 用户上传 -->
+                <mxCell id="phase2" value="阶段 ②  用户上传训练音频" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="260" width="600" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-user" value="普通用户" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=10;" vertex="1" parent="phase2">
+                    <mxGeometry x="30" y="40" width="30" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-api" value="POST /voiceClone/upload&#xa;(id, MultipartFile)&#xa;WAV/MP3, ≤ 10MB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;align=left;spacingLeft=5;" vertex="1" parent="phase2">
+                    <mxGeometry x="100" y="40" width="180" height="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-svc" value="uploadVoice(id, file)&#xa;file.getBytes()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="phase2">
+                    <mxGeometry x="320" y="40" width="140" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-db" value="UPDATE ai_voice_clone&#xa;SET voice = ? (LONGBLOB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="phase2">
+                    <mxGeometry x="320" y="90" width="200" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2-e1" style="rounded=1;" edge="1" source="p2-user" target="p2-api" parent="phase2"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p2-e2" style="rounded=1;" edge="1" source="p2-api" target="p2-svc" parent="phase2"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p2-e3" style="rounded=1;" edge="1" source="p2-svc" target="p2-db" parent="phase2"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <!-- 阶段3: 触发训练 -->
+                <mxCell id="phase3" value="阶段 ③  触发克隆训练" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="420" width="1300" height="230" as="geometry"/>
+                </mxCell>
+                <mxCell id="p3-user" value="用户" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=10;" vertex="1" parent="phase3">
+                    <mxGeometry x="20" y="50" width="30" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="p3-api" value="POST /voiceClone/cloneAudio&#xa;{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="phase3">
+                    <mxGeometry x="80" y="55" width="180" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="p3-read" value="读取 voice 字节&#xa;+ ModelConfig" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="phase3">
+                    <mxGeometry x="290" y="55" width="130" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="p3-build" value="构造火山 API 请求&#xa;Base64(WAV)&#xa;appid / speaker_id / source / language" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="phase3">
+                    <mxGeometry x="450" y="45" width="230" height="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="p3-call" value="POST openspeech.bytedance.com&#xa;/api/v1/mega_tts/audio/upload&#xa;Authorization: Bearer;{access_token}&#xa;Resource-Id: seed-icl-1.0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;align=left;spacingLeft=5;" vertex="1" parent="phase3">
+                    <mxGeometry x="720" y="40" width="260" height="70" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="p3-cond" value="StatusCode?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="phase3">
+                    <mxGeometry x="780" y="130" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="p3-ok" value="= 0 (成功)&#xa;UPDATE trainStatus=2&#xa;voiceId = 返回的 speaker_id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="phase3">
+                    <mxGeometry x="950" y="130" width="210" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="p3-fail" value="≠ 0 (失败)&#xa;UPDATE trainStatus=3&#xa;trainError = 错误信息" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="phase3">
+                    <mxGeometry x="560" y="145" width="190" height="50" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="p3-e1" style="rounded=1;" edge="1" source="p3-user" target="p3-api" parent="phase3"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p3-e2" style="rounded=1;" edge="1" source="p3-api" target="p3-read" parent="phase3"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p3-e3" style="rounded=1;" edge="1" source="p3-read" target="p3-build" parent="phase3"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p3-e4" style="rounded=1;" edge="1" source="p3-build" target="p3-call" parent="phase3"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p3-e5" style="rounded=1;" edge="1" source="p3-call" target="p3-cond" parent="phase3"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p3-e6" style="rounded=1;strokeColor=#82b366;" edge="1" source="p3-cond" target="p3-ok" parent="phase3"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p3-e7" style="rounded=1;strokeColor=#b85450;" edge="1" source="p3-cond" target="p3-fail" parent="phase3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <!-- 阶段4: 使用 -->
+                <mxCell id="phase4" value="阶段 ④  用户选用克隆音色" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=13;container=1;collapsible=0;spacingTop=5;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="670" width="600" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="p4-user" value="用户" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=10;" vertex="1" parent="phase4">
+                    <mxGeometry x="30" y="40" width="30" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="p4-set" value="智能体设置中&#xa;选择克隆音色" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="phase4">
+                    <mxGeometry x="100" y="50" width="130" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="p4-save" value="ttsVoiceId =&#xa;ai_voice_clone.id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="phase4">
+                    <mxGeometry x="270" y="50" width="140" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="p4-config" value="ConfigService 下发时&#xa;优先查 ai_tts_voice&#xa;找不到→查 ai_voice_clone&#xa;voice = clone.voiceId" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;align=left;spacingLeft=5;" vertex="1" parent="phase4">
+                    <mxGeometry x="270" y="100" width="200" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="p4-e1" style="rounded=1;" edge="1" source="p4-user" target="p4-set" parent="phase4"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p4-e2" style="rounded=1;" edge="1" source="p4-set" target="p4-save" parent="phase4"><mxGeometry relative="1" as="geometry"/></mxCell>
+                <mxCell id="p4-e3" style="rounded=1;dashed=1;" edge="1" source="p4-save" target="p4-config" parent="phase4"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+                <!-- 阶段间连接箭头 -->
+                <mxCell id="phase-e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#9673a6;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="340" y="240" as="sourcePoint"/>
+                        <mxPoint x="340" y="260" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="phase-e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#6c8ebf;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="340" y="400" as="sourcePoint"/>
+                        <mxPoint x="340" y="420" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="phase-e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#d6b656;dashed=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="340" y="650" as="sourcePoint"/>
+                        <mxPoint x="340" y="670" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
