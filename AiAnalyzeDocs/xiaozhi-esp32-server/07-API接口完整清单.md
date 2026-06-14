@@ -28,6 +28,10 @@
 | POST | `/device/manual-add` | oauth2 | 手动添加设备 |
 | POST | `/device/tools/list/{deviceId}` | oauth2 | MCP工具列表 |
 | POST | `/device/tools/call/{deviceId}` | oauth2 | MCP工具调用 |
+| GET | `/device/address-book/{macAddress}` | oauth2 | 获取设备通讯录 |
+| GET | `/device/address-book/lookup` | oauth2 | 按昵称查找设备 |
+| PUT | `/device/address-book/alias` | oauth2 | 更新通讯录别名 |
+| PUT | `/device/address-book/permission` | oauth2 | 更新通讯录权限 |
 
 ## 3. OTA设备端 (/ota)
 
@@ -176,6 +180,7 @@
 |------|------|------|------|
 | POST | `/config/server-base` | server | 全站配置树 |
 | POST | `/config/agent-models` | server | 设备私有模型配置 |
+| POST | `/config/correct-words` | server | 按设备MAC获取替换词 |
 
 ## 10. 系统管理
 
@@ -258,7 +263,19 @@
 | GET | `/voiceResource/user/{userId}` | oauth2 | 按用户查 |
 | GET | `/voiceResource/ttsPlatforms` | oauth2 | TTS平台列表 |
 
-## 14. Python 核心服务 HTTP 接口
+## 14. 替换词 (/correct-word)
+
+| 方法 | 路径 | 鉴权 | 功能 |
+|------|------|------|------|
+| POST | `/correct-word/file` | oauth2 | 创建替换词文件 |
+| PUT | `/correct-word/file/{fileId}` | oauth2 | 修改替换词文件 |
+| GET | `/correct-word/file/list` | oauth2 | 分页获取替换词文件列表 |
+| GET | `/correct-word/file/select` | oauth2 | 智能体获取替换词文件列表 |
+| GET | `/correct-word/file/download/{fileId}` | oauth2 | 下载替换词文件 |
+| DELETE | `/correct-word/file/{fileId}` | oauth2 | 删除替换词文件 |
+| POST | `/correct-word/file/batch-delete` | oauth2 | 批量删除替换词文件 |
+
+## 15. Python 核心服务 HTTP 接口
 
 | 方法 | 路径 | 端口 | 功能 |
 |------|------|------|------|
@@ -266,9 +283,9 @@
 | GET | `/xiaozhi/ota/download/{filename}` | 8003 | 固件下载(仅非API模式) |
 | GET/POST | `/mcp/vision/explain` | 8003 | 视觉识别 |
 
-## 15. Python 核心服务 WebSocket 消息类型
+## 16. Python 核心服务 WebSocket 消息类型
 
-### 15.1 客户端 → 服务端 (文本JSON)
+### 16.1 客户端 → 服务端 (文本JSON)
 
 | type | 功能 | 关键字段 |
 |------|------|---------|
@@ -280,7 +297,7 @@
 | `server` | 管理端控制 | action(update_config/restart), content.secret |
 | `ping` | 心跳 | - |
 
-### 15.2 服务端 → 客户端 (文本JSON)
+### 16.2 服务端 → 客户端 (文本JSON)
 
 | type | 功能 |
 |------|------|
@@ -290,7 +307,7 @@
 | `llm` | LLM生成文本(emotion) |
 | `pong` | 心跳回复 |
 
-### 15.3 二进制帧
+### 16.3 二进制帧
 
 - **客户端→服务端**：Opus编码音频（MQTT网关带16字节头）
 - **服务端→客户端**：Opus编码TTS音频（MQTT网关带16字节头）

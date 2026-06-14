@@ -53,7 +53,7 @@ load_config()
  ├── merge_configs(default, custom)     # 递归合并，用户优先
  ├── 若 manager-api.url 存在:
  │   └── get_config_from_api_async()
- │       ├── ManageApiClient.init_service(config)
+ │       ├── init_service(config)           # 初始化 ManageApiClient 单例
  │       ├── get_server_config()        # POST /config/server-base
  │       ├── 标记 read_config_from_api = true
  │       └── 合并：保留本地 server.ip/port/http_port/vision_explain/auth_key
@@ -80,6 +80,8 @@ load_config()
 | `report(data)` | POST /agent/chat-history/report | 上报聊天记录 |
 | `generate_and_save_chat_title(session_id)` | POST /agent/chat-title/{id}/generate | 生成会话标题 |
 | `generate_and_save_chat_summary(session_id)` | POST /agent/chat-summary/{id}/save | 生成会话摘要 |
+| `get_correct_words(mac)` | POST /config/correct-words | 获取智能体替换词 |
+| `lookup_address_book(caller_mac, nickname)` | GET /device/address-book/lookup | 通讯录查找目标设备 |
 
 ### 3.3 logger.py - 日志初始化
 
@@ -123,68 +125,113 @@ update_config()
 
 ```
 ConnectionHandler.handle_connection(websocket)
- ├── 记录 loop, headers, device_id, client_ip
+ ├── 获取 loop, headers, device_id, client_ip(支持X-Real-IP/X-Forwarded-For)
  ├── 检测 MQTT 网关 (?from=mqtt_gateway)
- ├── _check_timeout() 启动超时检测任务
- ├── 构造 welcome_msg (含 session_id)
+ ├── 初始化活动时间戳 (first_activity_time, last_activity_time)
+ ├── _check_timeout() 启动超时检测任务(每10秒检查一次)
+ ├── 构造 welcome_msg (含 session_id, audio_params)
  ├── asyncio.create_task(_background_initialize())  # 不阻塞收包
  │   ├── _initialize_private_config_async()
  │   │   ├── get_private_config_from_api(device_id, client_id, selected_module)
- │   │   │   → POST /config/agent-models
- │   │   ├── 处理 DeviceNotFoundException → 播报"未找到设备"
- │   │   └── 处理 DeviceBindException → need_bind=true, 播报激活码
- │   ├── _initialize_components()
- │   │   ├── initialize_tts(config)     # 初始化TTS
- │   │   ├── initialize_asr(config)     # 初始化ASR(若私有配置)
- │   │   └── UnifiedToolHandler()       # 初始化工具系统
+ │   │   │   → POST /config/agent-models + POST /config/correct-words
+ │   │   ├── 处理 DeviceNotFoundException → need_bind=true
+ │   │   ├── 处理 DeviceBindException → need_bind=true, bind_code
+ │   │   ├── 解析私有配置: VAD/ASR/LLM/TTS/VLLM/Memory/Intent
+ │   │   ├── 解析 prompt/voiceprint/summaryMemory/mcp_endpoint
+ │   │   ├── 注入 correct_words 到 TTS 配置
+ │   │   └── 在线程池中 initialize_modules() 初始化各组件
+ │   ├── _initialize_components() (在线程池中执行)
+ │   │   ├── _initialize_tts() → DefaultTTS 兜底
+ │   │   ├── tts.open_audio_channels() → 打开语音合成通道
+ │   │   ├── _initialize_asr() → 本地ASR共享/远程ASR独立实例
+ │   │   ├── _initialize_voiceprint() → 声纹识别初始化
+ │   │   ├── asr.open_audio_channels() → 打开语音识别通道
+ │   │   ├── _initialize_memory() → 记忆初始化(可能创建专用LLM)
+ │   │   ├── _initialize_intent() → 意图识别(可能创建专用LLM)
+ │   │   │   └── UnifiedToolHandler() → 异步初始化工具系统
+ │   │   ├── _init_prompt_enhancement() → 增强提示词
+ │   │   └── _inject_tool_call_fewshot() → 注入few-shot示例
  │   └── bind_completed_event.set()     # 标记初始化完成
  └── async for message in websocket:
      └── _route_message(message)
 ```
 
+> **运行验证**：本节描述的 `_initialize_private_config_async()` 绑定状态判定（DeviceNotFoundException → `need_bind=True`、DeviceBindException → `need_bind=True, bind_code`）、`_route_message()` 消息路由拦截、`check_bind_device()` 绑定码播报等关键路径，均已通过 Docker 容器 + Mock manager-api 端到端验证（3 种绑定状态场景：已绑定 / 未注册 / 注册未绑定），详细证据见 **17-设备启动流程运行验证报告.md** §5（绑定设备流程验证）、§7.3（全模块部署完整时序）。
+
 ### 5.2 消息路由
 
 ```
 _route_message(message)
- ├── 若 is_exiting → 丢弃
  ├── 若 bind_completed_event 未就绪 → 等待最多1秒
  │   └── 超时 → _discard_message_with_bind_prompt()
  ├── 若 need_bind → 丢弃(可能播报绑定提示)
  ├── str 类型 → handleTextMessage(conn, message)
  └── bytes 类型:
-     ├── MQTT带头 → _process_mqtt_audio_message() (时间戳重排)
-     └── 普通音频 → asr_audio_queue.put(audio_data)
+     ├── MQTT带头(≥16字节) → _process_mqtt_audio_message() (时间戳重排)
+     └── 普通音频 → asr_audio_queue.put(message)
 ```
 
 ### 5.3 对话核心流程
 
+`chat()` 方法支持递归调用（最大深度 `MAX_DEPTH=5`），是 Agent 循环的核心。
+
 ```
-ConnectionHandler.chat(user_text)
- ├── memory.query_memory()              # 查询记忆(线程安全future)
- ├── dialogue.upd  ate_system_message()   # 更新系统提示词(含记忆/声纹)
+ConnectionHandler.chat(user_text, depth=0)
+ ├── depth==0 时:
+ │   ├── 生成 sentence_id
+ │   ├── dialogue.put(user消息)
+ │   └── tts_text_queue.put(FIRST)        # 标记新一轮开始
+ │
+ ├── depth≥MAX_DEPTH 时:
+ │   ├── force_final_answer = True        # 强制直接回答
+ │   └── 注入系统提示"不要再调用工具"
+ │
+ ├── memory.query_memory()                # 查询记忆(线程安全future)
+ ├── 构建 functions 列表 (仅 function_call 模式):
+ │   ├── func_handler.get_functions()      # 真实工具列表
+ │   └── depth==0 时追加 direct_answer 虚拟工具
+ │       (让模型选择"调工具"还是"直接回答")
+ │
  ├── llm.response() 或 response_with_functions()  # LLM流式推理
- │   ├── 每个文本片段 → tts_text_queue   # 进入TTS队列
- │   └── function_call → _handle_function_result()
- │       ├── UnifiedToolHandler.handle_llm_function_call()
- │       ├── send_display_message()      # 向客户端显示工具名
- │       ├── tool_manager.execute_tool() # 执行工具
- │       └── 结果写回 dialogue → 可能递归 chat
- └── TTS异步: sendAudioHandle → audioRateController → WebSocket二进制帧
+ │   ├── 每个文本片段 → tts_text_queue   # 实时送TTS
+ │   ├── direct_answer 流式提取:
+ │   │   └── 从 arguments 的 response 参数实时抽取文本 → tts_text_queue
+ │   ├── emotion 表情提取(仅首轮)
+ │   └── function_call 收集:
+ │       ├── _merge_tool_calls()           # 合并多个并行工具调用
+ │       └── 支持 <tool_call> 文本格式和原生 function calling
+ │
+ ├── 处理工具调用结果:
+ │   ├── direct_answer → 已流式播报，写入对话历史
+ │   ├── 真实工具 → enqueue_tool_report → handle_llm_function_call
+ │   ├── _handle_function_result():
+ │   │   ├── Action.RESPONSE → 直接TTS播报
+ │   │   ├── Action.REQLLM → 工具结果写入dialogue → 递归 chat(None, depth+1)
+ │   │   ├── Action.RECORD → 写入完整工具调用链(assistant→tool→assistant)
+ │   │   └── Action.ERROR/NOTFOUND → 播报错误信息
+ │   └── 工具超时: tool_call_timeout(默认30秒)
+ │
+ └── depth==0 时: tts_text_queue.put(LAST)  # 标记本轮结束
 ```
+
+**direct_answer 虚拟工具**：不是真实工具，是路由机制——将"调不调工具"的二选一变为"调哪个"的多选，防止小模型误触发真实工具。仅在 depth=0 时注入，递归调用时不注入。
 
 ### 5.4 连接断开流程
 
 ```
 finally → _save_and_close()
- ├── 后台线程: generate_and_save_chat_title()  # 生成会话标题
- ├── asyncio: memory.save_memory()              # 保存记忆
- └── close(websocket)
-     ├── func_handler.cleanup()                 # 清理工具(关MCP等)
-     ├── 停止超时检测任务
-     ├── clear_queues()                         # 清空所有队列
+ ├── 守护线程1: generate_and_save_chat_title()   # 独立线程生成会话标题
+ ├── 守护线程2: memory.save_memory()              # 独立线程保存记忆
+ │   (两个线程均为 daemon=True，不阻塞主流程)
+ └── close(websocket)                            # 立即执行，不等待线程完成
+     ├── vad.release_conn_resources()            # 清理VAD资源
+     ├── func_handler.cleanup()                  # 清理工具(关MCP等)
+     ├── 取消超时检测任务
+     ├── stop_event.set()                        # 触发停止事件
+     ├── clear_queues()                          # 清空TTS/ASR/上报队列
      ├── websocket.close()
      ├── 关闭 TTS/ASR
-     └── executor.shutdown()
+     └── executor.shutdown(wait=False)
 ```
 
 ## 6. 消息处理体系 (core/handle/)
@@ -217,10 +264,12 @@ handleTextMessage(conn, message)
 接收音频二进制 → asr_audio_queue
  └── ASR线程: asr_text_priority_thread
      └── handleAudioMessage(conn, audio_data)
+         ├── 唤醒后短暂跳过VAD (just_woken_up, 2秒后恢复)
          ├── vad.is_vad(conn, audio)        # VAD检测
          │   ├── 说话中 → asr.receive_audio()
          │   └── 静音超时 → no_voice_close_connect
-         └── (唤醒后短暂跳过VAD)
+         └── no_voice_close_connect:
+             └── 超时无声 → 结束语(end_prompt)或关闭连接
 
 语音结束(listen stop / VAD判停):
  └── handle_voice_stop()
@@ -230,29 +279,46 @@ handleTextMessage(conn, message)
      └── startToChat(conn, text)
 
 startToChat(conn, text)
- ├── 绑定检查、输出字数限额
+ ├── 解析JSON格式(含speaker/language/content)
+ ├── 绑定检查 → check_bind_device()
+ ├── 输出字数限额 → max_out_size()
  ├── handleAbortMessage() (非manual且客户端在播时)
  ├── handle_user_intent(text)
- │   ├── 退出命令检测
- │   ├── 唤醒词检测
- │   ├── intent.detect_intent()           # 意图识别
- │   └── process_intent_result()
- │       ├── function_call → 工具执行
- │       └── speak_txt → 直接TTS播报
+ │   ├── 退出命令检测 (check_direct_exit)
+ │   ├── 唤醒词检测 (checkWakeupWords)
+ │   ├── 若 intent_type=="function_call" → 返回False(跳过意图分析)
+ │   ├── 若 intent_type=="intent_llm":
+ │   │   ├── intent.detect_intent(conn, dialogue, text)
+ │   │   └── process_intent_result()
+ │   │       ├── function_call → 工具执行
+ │   │       ├── continue_chat → 返回False
+ │   │       ├── result_for_context → 直接TTS播报
+ │   │       └── speak_txt → 直接TTS播报
+ │   └── 若 intent_type=="nointent" → 返回False
  ├── send_stt_message()                   # 发送识别文本到客户端
  └── executor.submit(conn.chat, text)     # 在线程池中启动对话
 ```
 
+**listen detect 状态的特殊处理**：
+- `[device_call]` 前缀：提取后文本直接播报给设备，不经过 LLM
+- 唤醒词：根据 `enable_greeting` 配置决定是否回复“嘿，你好呀”
+- 普通文本：进入 startToChat 流程
+
 ### 6.3 上报机制
+
+上报功能受 `chat_history_conf` 配置控制：0=关闭，1=仅文本，2=文本+音频。
 
 ```
 reportHandle:
- ├── enqueue_asr_report(conn, text)       # ASR文本上报(chatType=1 用户)
- ├── enqueue_tts_report(conn, text)       # TTS文本上报(chatType=2 智能体)
- └── enqueue_tool_report(conn, text)      # 工具调用上报(chatType=3)
+ ├── enqueue_asr_report(conn, text, opus_data)   # ASR上报(chatType=1 用户)
+ ├── enqueue_tts_report(conn, text, opus_data)   # TTS上报(chatType=2 智能体)
+ └── enqueue_tool_report(conn, tool_name, tool_input, tool_result)  # 工具上报(chatType=3)
+     ├── report_tool_call=True → 上报工具调用本身
+     └── report_tool_call=False → 仅上报工具结果
 
 → report_queue → _report_worker (后台线程)
-  └── _process_report()
+  └── _process_report(type, text, opus_data, report_time)
+      ├── opus_to_wav() → Opus解码为WAV (16kHz/单声道)
       └── ManageApiClient.report({
             macAddress, sessionId, chatType,
             content, reportTime, audioBase64
@@ -267,10 +333,10 @@ reportHandle:
 ```
 SimpleHttpServer.start()
  ├── 若 read_config_from_api == false:
- │   ├── GET/POST/OPTIONS /xiaozhi/ota/
- │   └── GET/OPTIONS /xiaozhi/ota/download/{filename}
+ │   ├── GET/POST/OPTIONS /xiaozhi/ota/       # OTA上报+健康检查
+ │   └── GET/OPTIONS /xiaozhi/ota/download/{filename}  # 固件下载
  └── 始终注册:
-     └── GET/POST/OPTIONS /mcp/vision/explain
+     └── GET/POST/OPTIONS /mcp/vision/explain  # 视觉分析
 ```
 
 ### 7.2 OTA处理 (ota_handler.py)
@@ -312,44 +378,71 @@ POST /mcp/vision/explain
 
 每个 Provider 域遵循统一模式：
 - `base.py`：抽象基类定义接口
-- 子目录：各厂商实现
+- 各厂商实现文件（扁平结构，每个厂商一个 `.py` 文件）
 - `modules_initialize.py`：按配置开关实例化
 
 ```
 providers/
-├── asr/           # 语音识别
+├── asr/           # 语音识别 (14个实现)
 │   ├── base.py    # ASRProviderBase
-│   ├── fun_local/ # FunASR本地
-│   ├── fun_server/# FunASR服务
-│   ├── xunfei/    # 讯飞
-│   ├── doubao/    # 豆包
-│   ├── tencent/   # 腾讯
-│   ├── openai/    # OpenAI Whisper
-│   └── ...
-├── llm/           # 大语言模型
+│   ├── dto/       # DTO定义(InterfaceType等)
+│   ├── fun_local.py       # FunASR本地
+│   ├── fun_server.py      # FunASR服务
+│   ├── doubao.py          # 豆包(非流式)
+│   ├── doubao_stream.py   # 豆包(流式)
+│   ├── aliyun.py          # 阿里云(非流式)
+│   ├── aliyun_stream.py   # 阿里云(流式)
+│   ├── aliyunbl_stream.py # 阿里云百炼(流式)
+│   ├── tencent.py         # 腾讯
+│   ├── baidu.py           # 百度
+│   ├── openai.py          # OpenAI Whisper
+│   ├── xunfei_stream.py   # 讯飞(流式)
+│   ├── qwen3_asr_flash.py # Qwen3 ASR
+│   ├── sherpa_onnx_local.py # Sherpa ONNX本地
+│   └── vosk.py            # Vosk本地
+├── llm/           # 大语言模型 (9个实现)
 │   ├── base.py    # LLMProviderBase
+│   ├── system_prompt.py  # 系统提示词工具
 │   ├── openai/    # OpenAI/兼容接口
 │   ├── ollama/    # Ollama
 │   ├── gemini/    # Google Gemini
 │   ├── dify/      # Dify
 │   ├── coze/      # Coze
-│   └── ...
-├── tts/           # 语音合成
+│   ├── fastgpt/   # FastGPT
+│   ├── homeassistant/ # Home Assistant
+│   ├── xinference/ # Xinference
+│   └── AliBL/     # 阿里百炼
+├── tts/           # 语音合成 (19个实现)
 │   ├── base.py    # TTSProviderBase
-│   ├── edge/      # Edge TTS
-│   ├── openai/    # OpenAI TTS
-│   ├── aliyun/    # 阿里云
-│   ├── xunfei/    # 讯飞
-│   └── ...
+│   ├── dto/       # DTO定义(ContentType, SentenceType等)
+│   ├── default.py  # DefaultTTS(兜底/音频文件播放)
+│   ├── edge.py     # Edge TTS
+│   ├── openai.py   # OpenAI TTS
+│   ├── aliyun.py   # 阿里云
+│   ├── aliyun_stream.py / alibl_stream.py  # 阿里云流式
+│   ├── doubao.py   # 豆包
+│   ├── tencent.py  # 腾讯
+│   ├── cozecn.py   # Coze
+│   ├── fishspeech.py # FishSpeech
+│   ├── siliconflow.py # SiliconFlow
+│   ├── gpt_sovits_v2.py / gpt_sovits_v3.py # GPT-SoVITS
+│   ├── huoshan_double_stream.py # 火山双流
+│   ├── index_stream.py # Index流式
+│   ├── minimax_httpstream.py # MiniMax
+│   ├── paddle_speech.py # PaddleSpeech
+│   ├── xunfei_stream.py # 讯飞流式
+│   └── custom.py   # 自定义TTS
 ├── vad/           # 语音活动检测
 │   ├── base.py    # VADProviderBase
 │   └── silero.py  # Silero VAD
-├── memory/        # 记忆管理
+├── memory/        # 记忆管理 (5个实现)
 │   ├── base.py    # MemoryProviderBase
 │   ├── nomem/     # 无记忆
 │   ├── mem_local_short/ # 本地短期记忆
-│   └── mem0ai/    # mem0 AI记忆
-├── intent/        # 意图识别
+│   ├── mem_report_only/ # 仅上报模式
+│   ├── mem0ai/    # mem0 AI记忆
+│   └── powermem/  # PowerMem
+├── intent/        # 意图识别 (3个实现)
 │   ├── base.py    # IntentProviderBase
 │   ├── nointent/  # 无意图
 │   ├── function_call/ # Function Calling
@@ -366,13 +459,20 @@ providers/
 |----------|---------|------|
 | **LLM** | `response(session_id, dialogue)` | 流式文本生成 |
 | | `response_with_functions(session_id, dialogue, functions)` | 支持Function Calling |
-| **ASR** | `open_audio_channels()` | 开启音频通道(线程) |
-| | `receive_audio(audio)` | 接收音频数据 |
-| | `handle_voice_stop()` | 处理语音结束 |
-| **TTS** | 基于 `tts_text_queue` | 文本队列消费 |
+| **ASR** | `open_audio_channels(conn)` | 开启音频通道(启动asr_text_priority_thread) |
+| | `receive_audio(conn, audio, have_voice)` | 接收音频数据 |
+| | `handle_voice_stop(conn, audio_data)` | 处理语音结束(Opus解码+识别) |
+| **TTS** | 基于 `tts_text_queue` / `tts_audio_queue` | 文本队列消费→音频队列输出 |
+| | `tts_one_sentence()` | 单句合成 |
+| | `store_tts_text(sentence_id, text)` | 存储文本用于上报 |
 | **VAD** | `is_vad(conn, audio)` | VAD检测 |
-| **Memory** | `init_memory()` / `query_memory()` / `save_memory()` | 记忆生命周期 |
-| **Intent** | `detect_intent(text)` | 意图识别 |
+| **Memory** | `init_memory(role_id, llm, summary_memory, save_to_file)` | 初始化记忆 |
+| | `query_memory(query)` | 查询相关记忆 |
+| | `save_memory(dialogue, session_id)` | 保存记忆 |
+| | `set_llm(llm)` | 设置记忆总结用LLM |
+| **Intent** | `detect_intent(conn, dialogue_history, text)` | 意图识别(返回JSON字符串) |
+| | `set_llm(llm)` | 设置意图识别用LLM |
+| | `replyResult(context, text)` | 基于上下文生成回复 |
 | **VLLM** | `response(question, image)` | 视觉问答 |
 
 ## 9. 工具系统 (core/providers/tools/)
@@ -444,12 +544,29 @@ loadplugins.auto_import_modules("plugins_func.functions")
 | 插件 | 功能 |
 |------|------|
 | `get_weather` | 天气查询 |
-| `hass_get_devices` | HomeAssistant设备列表 |
-| `hass_turn_on/off` | HomeAssistant设备控制 |
+| `get_time` | 时间查询 |
+| `get_news_from_chinanews` | 中国新闻 |
+| `get_news_from_newsnow` | NewsNow新闻 |
+| `hass_get_state` | HomeAssistant状态查询 |
+| `hass_set_state` | HomeAssistant状态设置 |
+| `hass_play_music` | HomeAssistant播放音乐 |
 | `search_from_ragflow` | RAGFlow知识库检索 |
 | `handle_exit_intent` | 退出意图处理 |
-| `get_lunar` | 农历查询 |
-| 更多... | 参见 plugins_func/functions/ 目录 |
+| `play_music` | 本地音乐播放 |
+| `web_search` | 网络搜索 |
+| `call_device` | 呼叫设备 |
+| `change_role` | 切换角色 |
+
+**Action 枚举类型**：
+
+| Action | 含义 |
+|--------|------|
+| `ERROR`(-1) | 错误 |
+| `NOTFOUND`(0) | 没有找到函数 |
+| `NONE`(1) | 不做任何操作 |
+| `RESPONSE`(2) | 直接回复前端 |
+| `REQLLM`(3) | 调用函数后再请求LLM生成回复 |
+| `RECORD`(4) | 记录工具调用到对话历史，不调用LLM |
 
 ### 10.3 执行路径
 
@@ -485,12 +602,38 @@ LLM function_call → UnifiedToolHandler
 4. 二进制Opus帧 → asr_audio_queue → handleAudioMessage → VAD检测
 5. VAD判停 / listen stop → handle_voice_stop → ASR识别出文字
 6. startToChat(text):
-   ├── 意图识别 (退出/唤醒词/function_call)
+   ├── JSON解析(speaker/language/content)
+   ├── 意图识别 (退出/唤醒词/function_call跳过)
    └── chat():
        ├── memory.query_memory()
        ├── LLM流式推理 → 文本片段进TTS队列
+       │   ├── direct_answer 流式抽取 → TTS队列
        │   └── 若function_call → 工具执行 → 结果写回dialogue → 可能递归chat
        └── TTS队列消费 → sendAudioHandle → 音频流控 → WebSocket二进制帧
 7. 上报: ASR文本/TTS文本/工具调用 → report_queue → POST /agent/chat-history/report
-8. 断开: save_memory → generate_chat_title → close
+8. 断开: save_memory(守护线程) + generate_chat_title(守护线程) → close
 ```
+
+## 13. 提示词与声纹管理
+
+### 13.1 PromptManager
+
+每个连接创建独立的 `PromptManager` 实例，负责：
+- **快速提示词**：初始化时直接设置用户配置的 prompt
+- **增强提示词**：后续根据上下文信息（时间、天气、位置等）动态构建增强版 prompt
+- **上下文更新**：从 context_providers 获取外部信息
+
+### 13.2 VoiceprintProvider
+
+每个连接独立初始化声纹识别：
+- 从配置的 `voiceprint` 节读取声纹服务地址和说话人配置
+- 支持声纹相似度匹配，用于识别说话人身份
+- 声纹信息注入到对话上下文中，影响 LLM 的回复
+
+### 13.3 替换词注入
+
+从智控台拉取的私有配置中包含 `correct_words`，会注入到当前 TTS 模块配置中：
+```
+private_config["correct_words"] → config["TTS"][selected_tts_module]["correct_words"]
+```
+用于 ASR 识别结果的文本替换，提高专业词汇的识别准确率。

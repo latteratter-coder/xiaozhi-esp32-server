@@ -51,7 +51,7 @@ App.vue onLaunch()
 |-----|------|------|
 | 首页 | `pages/index/index` | 智能体列表、创建、管理 |
 | 配网 | `pages/device-config/index` | WiFi/超声波配网 |
-| 设置 | `pages/settings/index` | 语言、服务器地址、退出 |
+| 系统 | `pages/settings/index` | 语言、服务器地址、退出 |
 
 ### 3.2 普通页面
 
@@ -62,6 +62,9 @@ App.vue onLaunch()
 | `pages/forgot-password/index` | 找回密码 |
 | `pages/agent/index` | 智能体详情入口 |
 | `pages/agent/edit.vue` | 编辑智能体(名称/模型/音色) |
+| `pages/agent/provider.vue` | 模型供应商选择 |
+| `pages/agent/speedPitch.vue` | 语速音调调节 |
+| `pages/agent/tools.vue` | 工具/插件管理 |
 | `pages/device/index` | 设备管理(绑定/解绑) |
 | `pages/chat-history/*` | 会话列表/聊天详情 |
 | `pages/voiceprint/index` | 声纹管理 |

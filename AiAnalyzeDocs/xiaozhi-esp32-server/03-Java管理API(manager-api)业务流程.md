@@ -18,11 +18,12 @@ manager-api/src/main/java/xiaozhi/
 │   └── utils/                      # 工具类(Result, AES, SM2, JSON等)
 └── modules/
     ├── security/                   # 认证授权(Shiro)
-    ├── device/                     # 设备管理 + OTA
+    ├── device/                     # 设备管理 + OTA + 通讯录
     ├── agent/                      # 智能体管理
     ├── model/                      # 模型管理
     ├── knowledge/                  # 知识库管理
     ├── config/                     # 配置下发
+    ├── correctword/                # 替换词管理
     ├── sys/                        # 系统管理(用户/参数/字典)
     ├── timbre/                     # 音色管理
     ├── voiceclone/                 # 语音克隆
@@ -167,11 +168,33 @@ POST /xiaozhi/ota/  (Shiro anon)
      │   │   └── 若 server.auth_enabled → HMAC token
      │   └── 组装 MQTT 信息(若配置)
      └── 未绑定设备:
+         ├── firmware.url = Constant.INVALID_FIRMWARE_URL
+         │   (占位字符串，阻止未绑定设备刷固件)
+         ├── websocket.url/token = 真实值 (与已绑定设备相同)
          └── buildActivation()
              ├── 生成6位激活码
-             ├── Redis存储 激活码→MAC 映射
-             └── 返回 activation 字段
+             ├── Redis 双写:
+             │   ├── ota:activation:code:{code}        → deviceId
+             │   └── ota:activation:device:{safeId}    → {activation_code, mac, board, ...}
+             └── 返回 activation 字段 {code, message, challenge}
 ```
+
+#### 4.2.1 设备侧激活状态轮询端点
+
+未绑定设备在 OTA 阶段拿到 `activation.code` 后，设备本地播报激活码（屏幕 + 数字音），然后每隔几秒轮询：
+
+```
+POST /ota/activate  (Shiro anon)
+Headers: Device-Id, Client-Id
+ └── OTAController.activateDevice()
+     ├── deviceService.getDeviceByMacAddress(deviceId)
+     ├── 设备不在 DB → ResponseEntity.status(202).build()  // 继续轮询
+     └── 设备已在 DB → ResponseEntity.ok("success")         // 激活完成
+```
+
+Web 端用户输入激活码调用 `POST /device/bind/{agentId}/{deviceCode}` 后，`deviceActivation()` 将设备写入 DB 并清理 Redis，下一次设备轮询 `/ota/activate` 就会收到 200，随后建立 WebSocket 连接进入正常对话。
+
+> **运行验证**：OTA 上报（含未绑定激活码生成 + 无效固件 URL 占位）和 `/ota/activate` 轮询机制已由源码逐行确认，并在 Docker 容器端到端测试中验证 3 种绑定状态场景（已绑定 / 未注册 / 注册未绑定），详见 **17-设备启动流程运行验证报告.md** §5、§7.3、§8。
 
 ### 4.3 设备绑定流程
 
@@ -199,6 +222,10 @@ POST /device/bind/{agentId}/{deviceCode}  (需登录)
 | POST | `/device/manual-add` | 手动添加设备 |
 | POST | `/device/tools/list/{deviceId}` | MCP工具列表(转发) |
 | POST | `/device/tools/call/{deviceId}` | MCP工具调用(转发) |
+| GET | `/device/address-book/{macAddress}` | 获取设备通讯录 |
+| GET | `/device/address-book/lookup` | 按昵称查找设备 |
+| PUT | `/device/address-book/alias` | 更新通讯录别名 |
+| PUT | `/device/address-book/permission` | 更新通讯录权限 |
 | POST | `/ota/` | 设备OTA上报(anon) |
 | POST | `/ota/activate` | 激活探测 |
 | GET | `/otaMag` | 固件列表(管理) |
@@ -310,10 +337,10 @@ GET /agent/mcp/tools/{agentId}
 | agentCode | String | 智能体编码 |
 | agentName | String | 名称 |
 | systemPrompt | String | 系统提示词 |
-| asrModelId / vadModelId / llmModelId / ... | Long | 各类模型ID |
-| ttsVoiceId | Long | TTS音色ID |
-| ttsLanguage / ttsVolume / ttsRate / ttsPitch | String | TTS参数 |
-| chatHistoryConf | String | 聊天记录配置 |
+| asrModelId / vadModelId / llmModelId / ... | String | 各类模型ID（模型代码标识） |
+| ttsVoiceId | String | TTS音色标识 |
+| ttsLanguage / ttsVolume / ttsRate / ttsPitch | String / Integer | TTS参数 |
+| chatHistoryConf | Integer | 聊天记录配置（0不记录 1仅记录文本 2记录文本和语音） |
 | summaryMemory | String | 记忆摘要 |
 | langCode / language | String | 语言 |
 
@@ -569,3 +596,27 @@ POST /user/smsVerification (LoginController, anon)
 ```
 
 短信模块无独立 Controller，由安全模块的验证码服务调用。
+
+## 13. 替换词模块 (modules/correctword/)
+
+### 13.1 职责
+
+管理 ASR 替换词文件，支持创建、编辑、下载、删除替换词文件，并将替换词关联到智能体。
+
+### 13.2 API 端点
+
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| POST | `/correct-word/file` | 创建替换词文件 |
+| PUT | `/correct-word/file/{fileId}` | 修改替换词文件 |
+| GET | `/correct-word/file/list` | 分页获取替换词文件列表 |
+| GET | `/correct-word/file/select` | 智能体获取替换词文件列表 |
+| GET | `/correct-word/file/download/{fileId}` | 下载替换词文件 |
+| DELETE | `/correct-word/file/{fileId}` | 删除替换词文件 |
+| POST | `/correct-word/file/batch-delete` | 批量删除替换词文件 |
+
+### 13.3 配置下发接口
+
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| POST | `/config/correct-words` | 按设备MAC获取替换词(服务间) |

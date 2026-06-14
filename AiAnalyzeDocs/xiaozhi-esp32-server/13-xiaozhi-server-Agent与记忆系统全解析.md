@@ -177,9 +177,7 @@ LLM 输出纯文本中嵌入 JSON：
 
 # 第二部分：chat() Agent 循环——源码逐行解读
 
-> 用"前台接待员"的类比，把 `core/connection.py` 的 `chat()` 方法拆成 9 个阶段讲透。
->
-> **架构图**：请用 VS Code Draw.io 插件打开 → [15-01-agent-architecture.drawio](15-01-agent-architecture.drawio)
+> 用“前台接待员”的类比，把 `core/connection.py` 的 `chat()` 方法拆成 9 个阶段讲透。
 
 ## 4. 先用一个生活场景来理解
 
@@ -250,31 +248,33 @@ def chat(self, query, depth=0):
 
 **为什么需要这个？** LLM 犯傻时：查天气失败 → 再查一次 → 又失败 → 再查... 没有限制就死循环了。
 
-### 阶段 3：检查是不是在"偷懒"（第 901-964 行）
+### 阶段 3：检查是不是在“偷懒”（第 901-964 行）
 
-**通俗理解**：检查你最近是不是偷懒，该打电话的时候没打。
-
-```python
-    if depth == 0 and query is not None:
-        turns_since_last = current_turn - self.tool_call_stats['last_call_turn']
-        
-        if turns_since_last > 3:
-            # 已经连续3轮没打过电话了！可能在偷懒
-            force_reminder = True
-```
-
-如果检测到偷懒，就临时贴一张便签：
+**通俗理解**：xiaozhi-server 在初始化时注入了 few-shot 示例（`_inject_tool_call_fewshot`），这些示例标记为 `is_temporary=True`，用于教模型正确使用工具调用格式。
 
 ```python
-    if tool_call_reminder:
-        self.dialogue.put(Message(
-            role="user",
-            content="【提醒】你有这些电话可以打：天气、音乐、新闻...",
-            is_temporary=True  # ← 标记为"临时的"，事后会撕掉
-        ))
+def _inject_tool_call_fewshot(self):
+    """注入工具调用 few-shot 示例到对话历史。"""
+    if self.intent_type != "function_call":
+        return
+    
+    # 示例1：direct_answer（直接回复，不调用真实工具）
+    self.dialogue.put(Message(role="user", content="给我讲个故事吧", is_temporary=True))
+    self.dialogue.put(Message(
+        role="assistant",
+        tool_calls=[{"function": {"name": "direct_answer", "arguments": '{"response": "好呀..."}'}}],
+        is_temporary=True,
+    ))
+    
+    # 示例2：真实工具调用（如 handle_exit_intent）
+    if "handle_exit_intent" in tool_names:
+        self.dialogue.put(Message(role="user", content="拜拜", is_temporary=True))
+        # ... 工具调用和回复的示例
 ```
 
-**类比**：主管贴便签提醒你："记得该查的时候要查，别瞎编！"用完后撕掉。
+**类比**：给新员工看操作示范录像，让他学习标准流程。这些示范一直留在对话记录里，帮助模型理解该怎么调用工具。
+
+> **注意**：源码中没有“偷懒检测”机制（即不会检测模型是否连续多轮未调用工具并注入提醒）。`is_temporary` 标记仅用于初始化时注入的 few-shot 示例。
 
 ### 阶段 4：翻看之前的笔记（查记忆）（第 972-980 行）
 
@@ -404,53 +404,51 @@ def chat(self, query, depth=0):
         self.dialogue.put(Message(role="assistant", content=text_buff))
     
     if depth == 0:
-        # 通知音箱："这轮话说完了"
+        # 通知音箱：“这轮话说完了”
         self.tts.tts_text_queue.put(TTSMessageDTO(sentence_type=SentenceType.LAST))
         
-        # 撕掉之前贴的临时便签（偷懒提醒）
-        self.dialogue.dialogue = [
-            msg for msg in self.dialogue.dialogue
-            if not getattr(msg, 'is_temporary', False)
-        ]
+        # 记录完整的对话历史（DEBUG模式）
+        self.logger.bind(tag=TAG).debug(
+            lambda: json.dumps(self.dialogue.get_llm_dialogue(), indent=4, ensure_ascii=False)
+        )
 ```
 
-**类比**：客人走了，撕掉临时便签，整理好本子，等下一个客人。
+**类比**：客人走了，整理好本子，等下一个客人。初始化时注入的 few-shot 示例一直留在对话记录中，持续为模型提供参考。
 
 ---
 
 ## 6. 用一个完整例子串起来
 
-用户说：**"查一下北京天气，然后放首歌"**
+用户说：**“查一下北京天气，然后放首歌”**
 
 ```
 chat("查一下北京天气，然后放首歌", depth=0)
 │
-├─ 阶段1: 登记用户的话
+├─ 阶段1: 登记用户的话 + 发送FIRST标记
 ├─ 阶段2: depth=0 < 5，不限制
-├─ 阶段3: 偷懒检测（假设正常）
-├─ 阶段4: 查记忆 → "用户喜欢周杰伦"
+├─ 阶段3: few-shot示例已在初始化时注入
+├─ 阶段4: 查记忆 → “用户喜欢周杰伦”
 ├─ 阶段5: 把一切交给 LLM
 │
 ├─ 阶段6: LLM 返回 tool_calls:
 │   [get_weather("北京"), play_music("周杰伦")]  ← 两个工具！
 │
 ├─ 阶段7: 同时执行两个工具（并发）
-│   ├─ get_weather("北京") → "晴，25°C"（Action.REQLLM）
-│   └─ play_music("周杰伦") → "正在播放晚晴"（Action.RESPONSE）
+│   ├─ get_weather("北京") → “晴，25°C”（Action.REQLLM）
+│   └─ play_music("周杰伦”) → “正在播放晚晴”（Action.RESPONSE）
 │
 ├─ 阶段8: 处理结果
-│   ├─ play_music 是 RESPONSE → 直接念："正在为您播放晚晴"
+│   ├─ play_music 是 RESPONSE → 直接念：“正在为您播放晚晴”
 │   └─ get_weather 是 REQLLM → 需要 LLM 加工 → 递归！
 │       │
 │       └─ chat(None, depth=1)
 │           ├─ 阶段5: LLM 看到天气数据
-│           ├─ 阶段6: LLM 生成："北京今天晴天25度，很适合出门~"
+│           ├─ 阶段6: LLM 生成：“北京今天晴天25度，很适合出门~”
 │           │   （纯文本，不调工具 → 推给 TTS）
 │           └─ 返回
 │
 ├─ 阶段9: depth=0 收尾
-│   ├─ 通知 TTS "说完了"
-│   └─ 清理临时便签
+│   └─ 通知 TTS “说完了”(LAST标记)
 └─ 完成
 ```
 
@@ -675,30 +673,35 @@ messages = self.dialogue.get_llm_dialogue_with_memory(memory_str, ...)
 对应源码 `core/handle/reportHandle.py`：
 
 ```python
-# 用户说了一句话 → 立刻上报
-def enqueue_asr_report(conn, text, audio=None):
-    conn.report_queue.put({
-        "chatType": 1,         # 1=用户消息
-        "content": text,
-        "audioBase64": audio,   # 可选：原始语音
-    })
+# 用户说了一句话 → 加入上报队列
+def enqueue_asr_report(conn, text, opus_data):
+    if not conn.read_config_from_api or conn.need_bind or not conn.report_asr_enable:
+        return
+    if conn.chat_history_conf == 0:
+        return
+    # 根据 chat_history_conf 决定是否上报音频
+    if conn.chat_history_conf == 2:
+        conn.report_queue.put((1, text, opus_data, int(time.time() * 1000)))
+    else:
+        conn.report_queue.put((1, text, None, int(time.time() * 1000)))
 
-# AI 回了一句话 → 立刻上报
-def enqueue_tts_report(conn, text, audio=None):
-    conn.report_queue.put({
-        "chatType": 2,         # 2=AI回复
-        "content": text,
-    })
+# AI 回了一句话 → 加入上报队列
+def enqueue_tts_report(conn, text, opus_data):
+    # 类似逻辑，chatType=2
+    conn.report_queue.put((2, text, opus_data, int(time.time() * 1000)))
 
-# 调了一个工具 → 立刻上报
-def enqueue_tool_report(conn, tool_name, tool_input, tool_result=None):
-    conn.report_queue.put({
-        "chatType": 3,         # 3=工具调用
-        "content": f"{tool_name}: {tool_input}",
-    })
+# 调了一个工具 → 加入上报队列
+def enqueue_tool_report(conn, tool_name, tool_input, tool_result=None, report_tool_call=True):
+    # chatType=3，工具调用和结果分两条记录上报
+    if report_tool_call:
+        tool_text = json.dumps([{"type": "tool", "text": f"{tool_name}({json.dumps(tool_input)})"}])
+        conn.report_queue.put((3, tool_text, None, timestamp))
+    if tool_result:
+        result_content = json.dumps([{"type": "tool_result", "text": f'{"result":"{tool_result}"}'}])
+        conn.report_queue.put((3, result_content, None, timestamp + 1))
 ```
 
-后台线程 `_report_worker` 不断从队列取消息发给 Java。
+后台线程 `_report_worker` 不断从队列取消息，通过 `ManageApiClient.report()` 发给 Java。上报时会将 Opus 音频解码为 WAV 格式（16kHz/单声道）。
 
 **三个要点**：
 
@@ -824,24 +827,17 @@ Java API (manager-api)
 
 ---
 
-## 16. drawio 图文件索引
+## 16. 参考源码路径
 
 | 文件 | 内容 |
 |------|------|
-| [15-01-agent-architecture.drawio](15-01-agent-architecture.drawio) | xiaozhi-server Agent 架构全景图 |
-
-> **查看方式**：安装 VS Code 插件 **Draw.io Integration**（`hediet.vscode-drawio`），双击 `.drawio` 文件即可查看。
-
----
-
-> **参考源码路径**：
-> - `xiaozhi-server/core/connection.py` — `chat()` Agent 核心 + `_handle_function_result` 递归
-> - `xiaozhi-server/core/providers/llm/openai/openai.py` — LLM 调用 + `<think>` 过滤
-> - `xiaozhi-server/core/providers/llm/system_prompt.py` — `<tool_call>` 文本格式的 Prompt 模板
-> - `xiaozhi-server/core/utils/dialogue.py` — 对话历史管理 + 记忆注入
-> - `xiaozhi-server/core/providers/memory/mem_local_short/mem_local_short.py` — 本地记忆实现
-> - `xiaozhi-server/core/providers/memory/mem0ai/mem0ai.py` — Mem0 向量记忆
-> - `xiaozhi-server/core/providers/memory/powermem/powermem.py` — PowerMem 记忆
-> - `xiaozhi-server/core/handle/reportHandle.py` — 上报逻辑 + `enqueue_*` 函数
-> - `xiaozhi-server/plugins_func/register.py` — `Action` 枚举、工具注册机制
-> - `xiaozhi-server/plugins_func/functions/*.py` — 内置工具实现
+| `core/connection.py` | `chat()` Agent 核心 + `_handle_function_result` 递归 |
+| `core/providers/llm/openai/openai.py` | LLM 调用 + `<think>` 过滤 |
+| `core/providers/llm/system_prompt.py` | `<tool_call>` 文本格式的 Prompt 模板 |
+| `core/utils/dialogue.py` | 对话历史管理 + 记忆注入 |
+| `core/providers/memory/mem_local_short/mem_local_short.py` | 本地记忆实现 |
+| `core/providers/memory/mem0ai/mem0ai.py` | Mem0 向量记忆 |
+| `core/providers/memory/powermem/powermem.py` | PowerMem 记忆 |
+| `core/handle/reportHandle.py` | 上报逻辑 + `enqueue_*` 函数 |
+| `plugins_func/register.py` | `Action` 枚举、工具注册机制 |
+| `plugins_func/functions/*.py` | 内置工具实现 |

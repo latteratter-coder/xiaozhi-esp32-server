@@ -18,7 +18,8 @@
 - [5. modules — 业务模块层（235 个文件）](#5-modules--业务模块层235-个文件)
   - [5.1 agent — 智能体模块（69 个文件）](#51-agent--智能体模块69-个文件)
   - [5.2 config — 配置中枢模块（5 个文件）](#52-config--配置中枢模块5-个文件)
-  - [5.3 device — 设备管理模块（22 个文件）](#53-device--设备管理模块22-个文件)
+  - [5.2.1 correctword — 替换词管理模块（10 个文件）](#521-correctword--替换词管理模块10-个文件)
+  - [5.3 device — 设备管理模块（27 个文件）](#53-device--设备管理模块27-个文件)
   - [5.4 knowledge — 知识库模块（32 个文件）](#54-knowledge--知识库模块32-个文件)
   - [5.5 llm — 大语言模型模块（2 个文件）](#55-llm--大语言模型模块2-个文件)
   - [5.6 model — 模型配置模块（16 个文件）](#56-model--模型配置模块16-个文件)
@@ -80,7 +81,8 @@ manager-api/
 │   └── modules/                     # 业务模块层（235 个文件）
 │       ├── agent/                   #   智能体（69 文件）
 │       ├── config/                  #   配置中枢（5 文件）
-│       ├── device/                  #   设备管理（22 文件）
+│       ├── correctword/             #   替换词管理（10 文件）
+│       ├── device/                  #   设备管理（27 文件）
 │       ├── knowledge/               #   知识库（32 文件）
 │       ├── llm/                     #   LLM 服务（2 文件）
 │       ├── model/                   #   模型配置（16 文件）
@@ -379,13 +381,56 @@ manager-api/
 
 | 文件 | 说明 |
 |------|------|
-| `controller/ConfigController.java` | 提供 `POST /config/server-base`（全局配置）和 `POST /config/agent-models`（按设备的智能体模型配置） |
+| `controller/ConfigController.java` | 提供 `POST /config/server-base`（全局配置）、`POST /config/agent-models`（按设备的智能体模型配置）和 `POST /config/correct-words`（替换词） |
 | `dto/AgentModelsDTO.java` | 请求体：MAC 地址、clientId、客户端已实例化模块映射 |
 | `init/SystemInitConfig.java` | 启动时校验版本并清空 Redis、初始化 server.secret、预热配置缓存 |
 | `service/ConfigService.java` | 配置聚合服务接口 |
 | `service/impl/ConfigServiceImpl.java` | 构建 Redis 缓存的服务端配置，按设备解析智能体的 VAD/ASR/LLM/TTS/Memory 等模型清单 |
 
-### 5.3 device — 设备管理模块（22 个文件）
+### 5.2.1 correctword — 替换词管理模块（10 个文件）
+
+管理 ASR 替换词文件，支持创建、编辑、下载、删除替换词文件，并将替换词关联到智能体。
+
+#### controller/
+
+| 文件 | 说明 |
+|------|------|
+| `CorrectWordController.java` | 替换词文件 CRUD、下载、批量删除 |
+
+#### dao/
+
+| 文件 | 说明 |
+|------|------|
+| `CorrectWordFileDao.java` | 替换词文件表 Mapper |
+| `CorrectWordItemDao.java` | 替换词条目表 Mapper |
+
+#### dto/
+
+| 文件 | 说明 |
+|------|------|
+| `CorrectWordFileCreateDTO.java` | 创建/修改替换词文件请求体 |
+
+#### entity/
+
+| 文件 | 说明 |
+|------|------|
+| `CorrectWordFileEntity.java` | 表 `ai_agent_correct_word_file`，替换词文件元数据 |
+| `CorrectWordItemEntity.java` | 表 `ai_agent_correct_word_item`，替换词词条 |
+
+#### service/ 与 service/impl/
+
+| 文件 | 说明 |
+|------|------|
+| `CorrectWordFileService.java` / `CorrectWordFileServiceImpl.java` | 替换词文件 CRUD、下载、智能体关联、批量删除 |
+
+#### vo/
+
+| 文件 | 说明 |
+|------|------|
+| `CorrectWordFileVO.java` | 替换词文件展示 |
+| `CorrectWordSimpleVO.java` | 替换词简讯 |
+
+### 5.3 device — 设备管理模块（27 个文件）
 
 管理 ESP32 等硬件设备的注册、绑定、OTA 升级。
 
@@ -402,13 +447,15 @@ manager-api/
 | 文件 | 说明 |
 |------|------|
 | `DeviceDao.java` | 设备表 Mapper，含按智能体查最近连接时间 |
+| `DeviceAddressBookDao.java` | 设备通讯录 Mapper |
 | `OtaDao.java` | OTA 固件表 Mapper |
 
-#### dto/（9 个文件）
+#### dto/（10 个文件）
 
 | 文件 | 说明 |
 |------|------|
-| `DeviceBindDTO.java` | MAC、用户与智能体绑定信息 |
+| `DeviceAddressBookAliasDTO.java` | 通讯录别名更新请求体 |
+| `DeviceAddressBookPermissionDTO.java` | 通讯录权限更新请求体 |
 | `DeviceManualAddDTO.java` | 管理员手动录入设备的参数 |
 | `DevicePageUserDTO.java` | 管理员分页查询设备的参数 |
 | `DeviceRegisterDTO.java` | 设备注册请求（仅 MAC） |
@@ -423,6 +470,7 @@ manager-api/
 | 文件 | 说明 |
 |------|------|
 | `DeviceEntity.java` | 表 `ai_device`，设备与用户、智能体、MAC、连接时间等 |
+| `DeviceAddressBookEntity.java` | 表 `ai_device_address_book`，设备通讯录记录 |
 | `OtaEntity.java` | 表 `ai_ota`，固件元数据与文件路径 |
 
 #### service/ 与 service/impl/
@@ -430,6 +478,7 @@ manager-api/
 | 文件 | 说明 |
 |------|------|
 | `DeviceService.java` / `DeviceServiceImpl.java` | 设备在线数据、激活检测、绑定解绑、HMAC Token、MQTT 配置生成等核心逻辑 |
+| `DeviceAddressBookService.java` / `DeviceAddressBookServiceImpl.java` | 设备通讯录管理：列表、别名、权限、按昵称查找 |
 | `OtaService.java` / `OtaServiceImpl.java` | 固件 CRUD、唯一性校验、按类型取最新版本 |
 
 #### vo/
@@ -757,17 +806,20 @@ manager-api/
 | `application-dev.yml` | 开发环境：Druid MySQL 数据源、Lettuce Redis 连接参数 |
 | `logback-spring.xml` | Logback 日志：彩色控制台 + 滚动文件（`./logs`）+ 按大小/日期切割 |
 
-### 6.2 mapper/ — MyBatis XML 映射（16 个文件）
+### 6.2 mapper/ — MyBatis XML 映射（19 个文件）
 
 | 文件 | 说明 |
 |------|------|
+| `mapper/agent/AgentCorrectWordMappingDao.xml` | 智能体替换词关联 SQL |
 | `mapper/agent/AgentDao.xml` | 智能体相关 SQL |
 | `mapper/agent/AgentPluginMappingMapper.xml` | 插件映射 SQL |
 | `mapper/agent/AgentTagDao.xml` | 标签 SQL |
 | `mapper/agent/AgentTagRelationDao.xml` | 标签关联 SQL |
 | `mapper/agent/AgentTemplateMapper.xml` | 模板 SQL |
 | `mapper/agent/AiAgentChatHistoryDao.xml` | 聊天历史 SQL |
+| `mapper/correctword/CorrectWordItemDao.xml` | 替换词条目 SQL |
 | `mapper/device/DeviceDao.xml` | 设备 SQL |
+| `mapper/device/DeviceAddressBookDao.xml` | 设备通讯录 SQL |
 | `mapper/knowledge/KnowledgeBaseDao.xml` | 知识库 SQL |
 | `mapper/model/ModelConfigDao.xml` | 模型配置 SQL |
 | `mapper/model/ModelProviderDao.xml` | 供应器 SQL |

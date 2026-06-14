@@ -23,8 +23,11 @@ manager-web/src/
 │       ├── dict.js        # 字典
 │       ├── ota.js         # OTA固件
 │       ├── knowledgeBase.js # 知识库
+│       ├── timbre.js       # 音色
 │       ├── voiceClone.js  # 语音克隆
-│       └── voiceResource.js # 语音资源
+│       ├── voiceResource.js # 语音资源
+│       ├── addressBook.js  # 设备通讯录
+│       └── correctWord.js  # 替换词管理
 ├── views/                 # 页面组件
 └── components/            # 公共组件
 ```
@@ -50,10 +53,10 @@ App.vue created()
 
 | 路径 | 名称 | 页面 | 功能 |
 |------|------|------|------|
-| `/` | login | login.vue | 登录页 |
+| `/` | welcome | login.vue | 登录页(默认) |
 | `/login` | login | login.vue | 登录页 |
-| `/register` | register | register.vue | 注册页 |
-| `/retrieve-password` | - | retrievePassword.vue | 找回密码 |
+| `/register` | Register | register.vue | 注册页 |
+| `/retrieve-password` | RetrievePassword | retrievePassword.vue | 找回密码 |
 | `/home` | home | home.vue | 首页(智能体列表) |
 | `/role-config` | RoleConfig | roleConfig.vue | 智能体配置 |
 | `/device-management` | DeviceManagement | DeviceManagement.vue | 设备管理 |
@@ -61,24 +64,27 @@ App.vue created()
 | `/model-config` | ModelConfig | ModelConfig.vue | 模型配置(超管) |
 | `/knowledge-base-management` | KnowledgeBaseManagement | KnowledgeBaseManagement.vue | 知识库 |
 | `/knowledge-file-upload` | KnowledgeFileUpload | KnowledgeFileUpload.vue | 文件上传 |
-| `/params-management` | - | ParamsManagement.vue | 系统参数 |
-| `/ota-management` | - | OtaManagement.vue | OTA固件管理 |
-| `/dict-management` | - | DictManagement.vue | 字典管理 |
-| `/server-side-management` | - | ServerSideManager.vue | 服务器管理 |
-| `/provider-management` | - | ProviderManagement.vue | 模型供应器 |
-| `/agent-template-management` | - | AgentTemplateManagement.vue | 智能体模板 |
-| `/template-quick-config` | - | TemplateQuickConfig.vue | 模板快速配置 |
-| `/feature-management` | - | FeatureManagement.vue | 功能配置 |
-| `/voice-resource-management` | - | VoiceResourceManagement.vue | 语音资源 |
-| `/voice-clone-management` | - | VoiceCloneManagement.vue | 语音克隆 |
-| `/voice-print` | - | VoicePrint.vue | 声纹管理 |
+| `/params-management` | ParamsManagement | ParamsManagement.vue | 系统参数 |
+| `/ota-management` | OtaManagement | OtaManagement.vue | OTA固件管理 |
+| `/dict-management` | DictManagement | DictManagement.vue | 字典管理 |
+| `/server-side-management` | ServerSideManager | ServerSideManager.vue | 服务器管理 |
+| `/provider-management` | ProviderManagement | ProviderManagement.vue | 模型供应器 |
+| `/agent-template-management` | AgentTemplateManagement | AgentTemplateManagement.vue | 智能体模板 |
+| `/template-quick-config` | TemplateQuickConfig | TemplateQuickConfig.vue | 模板快速配置 |
+| `/feature-management` | FeatureManagement | FeatureManagement.vue | 功能配置 |
+| `/voice-resource-management` | VoiceResourceManagement | VoiceResourceManagement.vue | 语音资源 |
+| `/voice-clone-management` | VoiceCloneManagement | VoiceCloneManagement.vue | 语音克隆 |
+| `/voice-print` | VoicePrint | VoicePrint.vue | 声纹管理 |
+| `/replacement-word-management` | ReplacementWordManagement | ReplacementWordManagement.vue | 替换词管理 |
+| `/address-book-management` | AddressBookManagement | AddressBookManagement.vue | 通讯录管理 |
 
 ### 3.2 导航守卫
 
 ```javascript
 // 白名单式保护，仅以下路由需要token
 const protectedRoutes = ['home', 'RoleConfig', 'DeviceManagement',
-  'UserManagement', 'ModelConfig', 'KnowledgeBaseManagement', 'KnowledgeFileUpload']
+  'UserManagement', 'ModelConfig', 'KnowledgeBaseManagement',
+  'KnowledgeFileUpload', 'AddressBookManagement']
 
 router.beforeEach((to, from, next) => {
   if (protectedRoutes.includes(to.name)) {
