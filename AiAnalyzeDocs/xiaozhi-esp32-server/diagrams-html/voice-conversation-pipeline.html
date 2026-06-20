@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>语音对话主流程 - xiaozhi-server</title>
+<style>
+:root {
+  --color-bg: #ffffff; --color-surface: #f8f9fa; --color-surface-elevated: #f0f1f3;
+  --color-text: #1a1a2e; --color-text-muted: #6b7280; --color-accent: #7c3aed;
+  --color-accent-text: #ffffff; --color-hover: #f3f4f6; --color-border: #e5e7eb;
+  --color-success: #22c55e; --color-warning: #f59e0b; --color-danger: #ef4444;
+  --color-info: #3b82f6;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --color-bg: #0d1117; --color-surface: #161b22; --color-surface-elevated: #21262d;
+  --color-text: #e6edf3; --color-text-muted: #8b949e; --color-accent: #a78bfa;
+  --color-accent-text: #ffffff; --color-hover: #21262d; --color-border: #30363d;
+  --color-success: #3fb950; --color-warning: #d29922; --color-danger: #f85149;
+  --color-info: #58a6ff;
+}}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--color-bg); color: var(--color-text); font-family: var(--font-family); padding: 24px; max-width: 960px; margin: 0 auto; }
+h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: var(--color-text-muted); margin-bottom: 20px; }
+svg text { font-family: var(--font-family); }
+.flow-desc { margin-top: 16px; padding: 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; }
+.flow-desc h3 { font-size: 14px; font-weight: 600; color: var(--color-accent); margin-bottom: 12px; }
+.flow-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; font-size: 13px; line-height: 1.6; }
+.flow-num { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: var(--color-accent); color: var(--color-accent-text); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.flow-num.green { background: var(--color-success); }
+.flow-num.red { background: var(--color-danger); }
+.flow-num.yellow { background: var(--color-warning); }
+.flow-num.blue { background: var(--color-info); }
+.flow-text { flex: 1; padding-top: 2px; }
+.flow-text code { font-family: var(--font-mono); font-size: 12px; background: var(--color-surface-elevated); padding: 1px 5px; border-radius: 3px; }
+.flow-branch { margin-left: 34px; padding-left: 12px; border-left: 2px solid var(--color-border); margin-bottom: 8px; }
+.source-ref { margin-top: 24px; padding: 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; font-size: 12px; color: var(--color-text-muted); }
+.source-ref strong { color: var(--color-text); }
+.legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--color-text-muted); }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+</style>
+</head>
+<body>
+<h1>语音对话主流程</h1>
+<p class="subtitle">xiaozhi-server · VAD → ASR → LLM → TTS 全链路 · 基于源码分析生成</p>
+
+<svg viewBox="0 0 880 620" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="var(--color-text-muted)"/></marker>
+    <marker id="arr-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="var(--color-success)"/></marker>
+    <marker id="arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="var(--color-danger)"/></marker>
+  </defs>
+
+  <text x="16" y="28" font-size="12" font-weight="600" fill="var(--color-text-muted)">PHASE 1 · 音频接收与VAD</text>
+  <text x="16" y="178" font-size="12" font-weight="600" fill="var(--color-text-muted)">PHASE 2 · ASR识别</text>
+  <text x="16" y="345" font-size="12" font-weight="600" fill="var(--color-text-muted)">PHASE 3 · LLM对话</text>
+  <text x="16" y="510" font-size="12" font-weight="600" fill="var(--color-text-muted)">PHASE 4 · TTS播放</text>
+  <line x1="10" y1="160" x2="870" y2="160" stroke="var(--color-border)" stroke-dasharray="4 3"/>
+  <line x1="10" y1="320" x2="870" y2="320" stroke="var(--color-border)" stroke-dasharray="4 3"/>
+  <line x1="10" y1="495" x2="870" y2="495" stroke="var(--color-border)" stroke-dasharray="4 3"/>
+
+  <!-- ① WebSocket音频 -->
+  <rect x="60" y="48" width="140" height="45" rx="8" fill="var(--color-surface)" stroke="var(--color-accent)" stroke-width="1.5"/>
+  <text x="130" y="68" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">WebSocket bytes</text>
+  <text x="130" y="83" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">opus音频帧 60ms</text>
+  <line x1="200" y1="70" x2="275" y2="70" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="237" cy="58" r="11" fill="var(--color-accent)"/><text x="237" y="62" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">1</text>
+
+  <!-- ② asr_audio_queue -->
+  <rect x="280" y="48" width="155" height="45" rx="8" fill="var(--color-surface)" stroke="var(--color-border)"/>
+  <text x="357" y="68" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">asr_audio_queue</text>
+  <text x="357" y="83" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">线程安全队列</text>
+  <line x1="435" y1="70" x2="510" y2="70" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="472" cy="58" r="11" fill="var(--color-accent)"/><text x="472" y="62" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">2</text>
+
+  <!-- ③ ASR优先级线程 -->
+  <rect x="515" y="48" width="165" height="45" rx="8" fill="rgba(124,58,237,0.1)" stroke="var(--color-accent)"/>
+  <text x="597" y="65" text-anchor="middle" font-size="11" font-weight="500" fill="var(--color-text)">asr_text_priority_thread</text>
+  <text x="597" y="80" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">独立线程消费队列</text>
+
+  <!-- ④ VAD -->
+  <line x1="597" y1="93" x2="597" y2="115" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="585" cy="107" r="11" fill="var(--color-accent)"/><text x="585" y="111" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">3</text>
+  <rect x="505" y="118" width="185" height="42" rx="8" fill="rgba(245,158,11,0.12)" stroke="var(--color-warning)" stroke-width="1.5"/>
+  <text x="597" y="136" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">Silero VAD (ONNX)</text>
+  <text x="597" y="150" text-anchor="middle" font-size="10" fill="var(--color-warning)">is_vad() 双阈值检测</text>
+
+  <!-- ⑤ 判断结果分支 -->
+  <line x1="505" y1="139" x2="415" y2="139" stroke="var(--color-success)" stroke-width="1.5" marker-end="url(#arr-g)"/>
+  <circle cx="460" cy="127" r="11" fill="var(--color-success)"/><text x="460" y="131" text-anchor="middle" font-size="9" font-weight="600" fill="white">4a</text>
+  <rect x="275" y="120" width="135" height="35" rx="6" fill="rgba(34,197,94,0.1)" stroke="var(--color-success)"/>
+  <text x="342" y="142" text-anchor="middle" font-size="11" fill="var(--color-success)">有人声 → 缓存音频</text>
+
+  <line x1="597" y1="160" x2="597" y2="185" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="585" cy="175" r="11" fill="var(--color-warning)"/><text x="585" y="179" text-anchor="middle" font-size="9" font-weight="600" fill="white">4b</text>
+  <rect x="500" y="188" width="195" height="35" rx="6" fill="rgba(245,158,11,0.1)" stroke="var(--color-warning)"/>
+  <text x="597" y="210" text-anchor="middle" font-size="11" fill="var(--color-warning)">静默超时 → voice_stop</text>
+
+  <line x1="690" y1="139" x2="770" y2="139" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="770" y="122" width="95" height="30" rx="6" fill="var(--color-surface-elevated)" stroke="var(--color-border)"/>
+  <text x="817" y="142" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">manual模式</text>
+  <text x="817" y="152" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">跳过VAD</text>
+
+  <!-- PHASE 2 -->
+  <!-- ⑤ handle_voice_stop -->
+  <rect x="140" y="195" width="185" height="45" rx="8" fill="rgba(124,58,237,0.1)" stroke="var(--color-accent)"/>
+  <text x="232" y="215" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">handle_voice_stop()</text>
+  <text x="232" y="230" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">语音结束触发</text>
+  <line x1="500" y1="205" x2="325" y2="215" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="410" cy="203" r="11" fill="var(--color-accent)"/><text x="410" y="207" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">5</text>
+
+  <!-- ⑥ 并行 ASR+声纹 -->
+  <line x1="232" y1="240" x2="232" y2="265" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="220" cy="255" r="11" fill="var(--color-accent)"/><text x="220" y="259" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">6</text>
+  <rect x="80" y="268" width="145" height="45" rx="8" fill="var(--color-surface)" stroke="var(--color-info)"/>
+  <text x="152" y="288" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">ASR speech_to_text</text>
+  <text x="152" y="303" text-anchor="middle" font-size="10" fill="var(--color-info)">opus解码→识别</text>
+  <rect x="240" y="268" width="130" height="45" rx="8" fill="var(--color-surface)" stroke="var(--color-info)"/>
+  <text x="305" y="288" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">声纹识别</text>
+  <text x="305" y="303" text-anchor="middle" font-size="10" fill="var(--color-info)">3D-Speaker</text>
+  <text x="225" y="290" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-info)">并行</text>
+
+  <!-- ⑦ startToChat -->
+  <line x1="232" y1="313" x2="232" y2="345" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="220" cy="333" r="11" fill="var(--color-accent)"/><text x="220" y="337" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">7</text>
+  <rect x="120" y="348" width="225" height="50" rx="8" fill="rgba(124,58,237,0.1)" stroke="var(--color-accent)" stroke-width="1.5"/>
+  <text x="232" y="368" text-anchor="middle" font-size="13" font-weight="500" fill="var(--color-text)">startToChat(conn, text)</text>
+  <text x="232" y="384" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">前置检查+意图+LLM入口</text>
+
+  <!-- 前置检查分支 -->
+  <rect x="390" y="340" width="130" height="28" rx="6" fill="rgba(239,68,68,0.08)" stroke="var(--color-danger)" stroke-dasharray="4 3"/>
+  <text x="455" y="359" text-anchor="middle" font-size="10" fill="var(--color-danger)">need_bind→绑定提示</text>
+  <rect x="390" y="372" width="130" height="28" rx="6" fill="rgba(245,158,11,0.08)" stroke="var(--color-warning)" stroke-dasharray="4 3"/>
+  <text x="455" y="391" text-anchor="middle" font-size="10" fill="var(--color-warning)">max_output→超限提示</text>
+  <rect x="535" y="355" width="145" height="28" rx="6" fill="rgba(59,130,246,0.08)" stroke="var(--color-info)" stroke-dasharray="4 3"/>
+  <text x="607" y="374" text-anchor="middle" font-size="10" fill="var(--color-info)">client_speaking→打断</text>
+
+  <!-- ⑧ 意图+chat -->
+  <line x1="345" y1="373" x2="420" y2="420" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="385" cy="400" r="11" fill="var(--color-accent)"/><text x="385" y="404" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">8</text>
+
+  <rect x="135" y="415" width="150" height="38" rx="8" fill="rgba(59,130,246,0.12)" stroke="var(--color-info)"/>
+  <text x="210" y="435" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">handle_user_intent()</text>
+  <text x="210" y="448" text-anchor="middle" font-size="10" fill="var(--color-info)">意图预检查</text>
+
+  <line x1="285" y1="434" x2="355" y2="434" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="320" cy="422" r="11" fill="var(--color-accent)"/><text x="320" y="426" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">9</text>
+
+  <rect x="360" y="415" width="165" height="38" rx="8" fill="var(--color-surface)" stroke="var(--color-border)"/>
+  <text x="442" y="432" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">send_stt_message()</text>
+  <text x="442" y="448" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">发送STT状态+TTS start</text>
+
+  <line x1="525" y1="434" x2="595" y2="434" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="560" cy="422" r="11" fill="var(--color-accent)"/><text x="560" y="426" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">10</text>
+
+  <rect x="600" y="415" width="160" height="38" rx="8" fill="rgba(124,58,237,0.1)" stroke="var(--color-accent)" stroke-width="1.5"/>
+  <text x="680" y="432" text-anchor="middle" font-size="13" font-weight="500" fill="var(--color-text)">executor.submit(chat)</text>
+  <text x="680" y="448" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">线程池执行LLM对话</text>
+
+  <!-- PHASE 3 内: chat() 细节 -->
+  <line x1="680" y1="453" x2="680" y2="475" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="668" cy="466" r="10" fill="var(--color-accent)"/><text x="668" y="470" text-anchor="middle" font-size="9" font-weight="600" fill="var(--color-accent-text)">11</text>
+
+  <rect x="590" y="478" width="180" height="40" rx="8" fill="var(--color-surface)" stroke="var(--color-border)"/>
+  <text x="680" y="495" text-anchor="middle" font-size="11" font-weight="500" fill="var(--color-text)">LLM流式SSE响应</text>
+  <text x="680" y="510" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">response_with_functions()</text>
+
+  <!-- PHASE 4: TTS -->
+  <line x1="680" y1="518" x2="680" y2="540" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="668" cy="532" r="10" fill="var(--color-accent)"/><text x="668" y="536" text-anchor="middle" font-size="9" font-weight="600" fill="var(--color-accent-text)">12</text>
+
+  <rect x="555" y="543" width="150" height="35" rx="8" fill="rgba(124,58,237,0.1)" stroke="var(--color-accent)"/>
+  <text x="630" y="560" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">tts_text_queue</text>
+  <text x="630" y="573" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">文本分段入队</text>
+
+  <line x1="555" y1="560" x2="475" y2="560" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="515" cy="548" r="10" fill="var(--color-accent)"/><text x="515" y="552" text-anchor="middle" font-size="9" font-weight="600" fill="var(--color-accent-text)">13</text>
+
+  <rect x="320" y="543" width="150" height="35" rx="8" fill="var(--color-surface)" stroke="var(--color-border)"/>
+  <text x="395" y="560" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">流式TTS合成</text>
+  <text x="395" y="573" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">to_tts_stream()</text>
+
+  <line x1="320" y1="560" x2="245" y2="560" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="282" cy="548" r="10" fill="var(--color-accent)"/><text x="282" y="552" text-anchor="middle" font-size="9" font-weight="600" fill="var(--color-accent-text)">14</text>
+
+  <rect x="90" y="543" width="150" height="35" rx="8" fill="rgba(34,197,94,0.1)" stroke="var(--color-success)"/>
+  <text x="165" y="560" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-success)">tts_audio_queue</text>
+  <text x="165" y="573" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">音频播放队列</text>
+
+  <line x1="90" y1="560" x2="55" y2="560" stroke="var(--color-success)" stroke-width="1.5" marker-end="url(#arr-g)"/>
+  <circle cx="72" cy="548" r="10" fill="var(--color-success)"/><text x="72" y="552" text-anchor="middle" font-size="9" font-weight="600" fill="white">15</text>
+
+  <rect x="15" y="588" width="210" height="30" rx="6" fill="rgba(34,197,94,0.1)" stroke="var(--color-success)"/>
+  <text x="120" y="608" text-anchor="middle" font-size="12" fill="var(--color-success)">sendAudioMessage → WebSocket</text>
+
+  <!-- direct_answer shortcut -->
+  <rect x="770" y="478" width="100" height="40" rx="6" fill="rgba(59,130,246,0.08)" stroke="var(--color-info)" stroke-dasharray="4 3"/>
+  <text x="820" y="496" text-anchor="middle" font-size="10" fill="var(--color-info)">direct_answer</text>
+  <text x="820" y="510" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">流式直送TTS</text>
+  <line x1="770" y1="498" x2="705" y2="498" stroke="var(--color-info)" stroke-width="1" stroke-dasharray="4 3"/>
+</svg>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--color-success)"></div>正常通过</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--color-warning)"></div>检测/判断</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--color-danger)"></div>拦截/终止</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--color-accent)"></div>核心节点</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--color-info)"></div>辅助/并行</div>
+</div>
+
+<div class="flow-desc">
+  <h3>完整流程说明</h3>
+  <div class="flow-step"><div class="flow-num">1</div><div class="flow-text">客户端持续发送 opus 编码音频帧（每帧 60ms），通过 WebSocket 到达 <code>_route_message()</code></div></div>
+  <div class="flow-step"><div class="flow-num">2</div><div class="flow-text">音频 bytes 放入 <code>asr_audio_queue</code>（线程安全队列），由 <code>asr_text_priority_thread</code> 独立线程消费</div></div>
+  <div class="flow-step"><div class="flow-num">3</div><div class="flow-text">每帧音频经过 <code>Silero VAD (ONNX)</code> 模型推理，输出语音概率 <code>speech_prob</code>，采用双阈值判断（高阈值 0.5 确认有声音，低阈值 0.2 确认静音）</div></div>
+  <div class="flow-step"><div class="flow-num green">4a</div><div class="flow-text">检测到人声 → 音频追加到 <code>asr_audio</code> 缓冲区，更新滑动窗口（连续 3 帧有声确认为有效语音）</div></div>
+  <div class="flow-branch">
+    <div class="flow-step"><div class="flow-num yellow">4b</div><div class="flow-text">静默时间超过阈值（默认 1000ms）→ 标记 <code>client_voice_stop=True</code>，触发语音结束</div></div>
+  </div>
+  <div class="flow-step"><div class="flow-num">5</div><div class="flow-text"><code>handle_voice_stop()</code> 被调用，准备进行 ASR 识别（非流式模式下使用缓冲区全部音频）</div></div>
+  <div class="flow-step"><div class="flow-num">6</div><div class="flow-text"><code>asyncio.gather()</code> 并行执行两个任务：ASR <code>speech_to_text()</code> 语音识别 + 声纹 <code>identify_speaker()</code> 说话人识别</div></div>
+  <div class="flow-step"><div class="flow-num">7</div><div class="flow-text">识别结果传入 <code>startToChat(conn, text)</code>，进行前置检查：绑定状态 → 输出限制 → 打断当前播放</div></div>
+  <div class="flow-branch">
+    <div class="flow-step"><div class="flow-num red">!</div><div class="flow-text"><code>need_bind=True</code> → 播报绑定提示音后返回</div></div>
+    <div class="flow-step"><div class="flow-num yellow">!</div><div class="flow-text">超出日输出限制 → 播报告别语后返回</div></div>
+    <div class="flow-step"><div class="flow-num blue">!</div><div class="flow-text">设备正在说话（非 manual 模式）→ <code>handleAbortMessage()</code> 打断播放</div></div>
+  </div>
+  <div class="flow-step"><div class="flow-num">8</div><div class="flow-text"><code>handle_user_intent()</code> 进行意图预检查：退出指令 → 唤醒词 → function_call 意图识别。若意图已处理则不再进入 LLM 对话</div></div>
+  <div class="flow-step"><div class="flow-num">9</div><div class="flow-text"><code>send_stt_message()</code> 将用户文本通过 WebSocket 发送给客户端显示，同时发送 TTS start 信号</div></div>
+  <div class="flow-step"><div class="flow-num">10</div><div class="flow-text">通过 <code>executor.submit(conn.chat)</code> 将 LLM 对话放入线程池异步执行，不阻塞主事件循环</div></div>
+  <div class="flow-step"><div class="flow-num">11</div><div class="flow-text"><code>chat()</code> 方法：组装对话历史 + 记忆 → 调用 <code>llm.response_with_functions()</code> 获取流式 SSE 响应</div></div>
+  <div class="flow-step"><div class="flow-num">12</div><div class="flow-text">LLM 流式响应逐 chunk 解析：<code>direct_answer</code> 直接回复内容实时入 TTS 队列；工具调用则执行后递归 chat</div></div>
+  <div class="flow-step"><div class="flow-num">13</div><div class="flow-text">文本按句分段（<code>_get_segment_text</code>），逐段送入 TTS 流式合成引擎（如火山/阿里/讯飞）</div></div>
+  <div class="flow-step"><div class="flow-num">14</div><div class="flow-text">合成后的 opus 音频帧进入 <code>tts_audio_queue</code>，由播放优先级线程按 60ms 间隔消费</div></div>
+  <div class="flow-step"><div class="flow-num green">15</div><div class="flow-text"><code>sendAudioMessage()</code> 通过 WebSocket 将音频帧发送给客户端播放，支持流控和预缓冲</div></div>
+</div>
+
+<div class="source-ref">
+  <strong>源码引用:</strong><br>
+  core/handle/receiveAudioHandle.py — handleAudioMessage() · startToChat() · no_voice_close_connect()<br>
+  core/providers/vad/silero.py — VADProvider.is_vad() · 双阈值检测<br>
+  core/providers/asr/base.py — asr_text_priority_thread() · receive_audio() · handle_voice_stop()<br>
+  core/connection.py — chat() · _route_message()<br>
+  core/handle/sendAudioHandle.py — sendAudioMessage() · send_stt_message()<br>
+  core/providers/tts/base.py — tts_text_priority_thread() · _audio_play_priority_thread()
+</div>
+</body>
+</html>

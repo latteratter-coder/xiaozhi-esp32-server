@@ -168,8 +168,10 @@ POST /xiaozhi/ota/  (Shiro anon)
      │   │   └── 若 server.auth_enabled → HMAC token
      │   └── 组装 MQTT 信息(若配置)
      └── 未绑定设备:
-         ├── firmware.url = Constant.INVALID_FIRMWARE_URL
-         │   (占位字符串，阻止未绑定设备刷固件)
+         ├── firmware.version = 设备上报的当前版本 (DeviceServiceImpl L210 回显)
+         ├── firmware.url = Constant.INVALID_FIRMWARE_URL (占位字符串)
+         │   阻止升级的真实机制：设备 ota.cc::IsNewVersionAvailable()
+         │   做语义化版本比对，上报版本 == 返回版本 → 判定无更新，跳过 Upgrade()
          ├── websocket.url/token = 真实值 (与已绑定设备相同)
          └── buildActivation()
              ├── 生成6位激活码

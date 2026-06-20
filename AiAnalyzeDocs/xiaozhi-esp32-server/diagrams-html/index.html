@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>xiaozhi-server 业务流程全景图</title>
+<style>
+:root{--color-bg:#fff;--color-surface:#f8f9fa;--color-surface-elevated:#f0f1f3;--color-text:#1a1a2e;--color-text-muted:#6b7280;--color-accent:#7c3aed;--color-accent-text:#fff;--color-border:#e5e7eb;--color-success:#22c55e;--color-warning:#f59e0b;--color-danger:#ef4444;--color-info:#3b82f6;--font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--font-mono:"SF Mono","Fira Code","Cascadia Code",monospace}
+@media(prefers-color-scheme:dark){:root{--color-bg:#0d1117;--color-surface:#161b22;--color-surface-elevated:#21262d;--color-text:#e6edf3;--color-text-muted:#8b949e;--color-accent:#a78bfa;--color-accent-text:#fff;--color-border:#30363d;--color-success:#3fb950;--color-warning:#d29922;--color-danger:#f85149;--color-info:#58a6ff}}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--color-bg);color:var(--color-text);font-family:var(--font-family);padding:24px 24px 60px;max-width:1060px;margin:0 auto}
+h1{font-size:26px;font-weight:700;margin-bottom:4px}
+.subtitle{font-size:14px;color:var(--color-text-muted);margin-bottom:28px;line-height:1.6}
+.stats{display:flex;gap:16px;margin-bottom:28px;flex-wrap:wrap}
+.stat{padding:10px 18px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:8px;font-size:13px}
+.stat .num{font-size:22px;font-weight:700;color:var(--color-accent)}
+.stat .label{color:var(--color-text-muted);margin-top:2px;font-size:11px}
+.group{margin-bottom:32px}
+.group-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--color-border)}
+.group-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff}
+.group-title{font-size:16px;font-weight:600}
+.group-desc{font-size:12px;color:var(--color-text-muted);margin-left:auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{display:block;text-decoration:none;color:var(--color-text);padding:16px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;transition:all 0.2s;position:relative;overflow:hidden}
+.card:hover{border-color:var(--color-accent);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+.card-num{position:absolute;top:10px;right:14px;font-size:28px;font-weight:800;color:var(--color-border);line-height:1}
+.card-title{font-size:15px;font-weight:600;margin-bottom:6px;padding-right:30px}
+.card-desc{font-size:12px;color:var(--color-text-muted);line-height:1.6}
+.card-tags{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 8px;border-radius:4px;font-weight:500;background:var(--color-surface-elevated);color:var(--color-text-muted)}
+.tag.core{background:rgba(124,58,237,0.12);color:var(--color-accent)}
+.tag.io{background:rgba(59,130,246,0.12);color:var(--color-info)}
+.tag.warn{background:rgba(245,158,11,0.12);color:var(--color-warning)}
+.tag.ok{background:rgba(34,197,94,0.12);color:var(--color-success)}
+.flow-chain{margin-top:8px;padding:16px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px}
+.flow-chain h3{font-size:14px;font-weight:600;color:var(--color-accent);margin-bottom:12px}
+.chain{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:12px;color:var(--color-text-muted);line-height:2}
+.chain a{color:var(--color-accent);text-decoration:none;padding:3px 10px;background:rgba(124,58,237,0.08);border-radius:4px;font-weight:500;white-space:nowrap}
+.chain a:hover{background:rgba(124,58,237,0.18)}
+.chain .arrow{color:var(--color-border);font-size:16px;font-weight:700}
+.source-note{margin-top:32px;padding:14px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:8px;font-size:12px;color:var(--color-text-muted);text-align:center}
+</style>
+</head>
+<body>
+
+<h1>xiaozhi-server 业务流程全景图</h1>
+<p class="subtitle">基于源码深度分析生成的交互式业务流程图集，覆盖设备连接、语音对话、工具调用、记忆系统等全部核心链路。<br>点击任意卡片可查看详细的带序号流程图。</p>
+
+<div class="stats">
+  <div class="stat"><div class="num">13</div><div class="label">业务流程</div></div>
+  <div class="stat"><div class="num">5</div><div class="label">功能模块</div></div>
+  <div class="stat"><div class="num">137</div><div class="label">源码文件</div></div>
+  <div class="stat"><div class="num">7</div><div class="label">消息类型</div></div>
+  <div class="stat"><div class="num">5</div><div class="label">工具执行器</div></div>
+</div>
+
+<!-- Group 1: 连接与认证层 -->
+<div class="group">
+  <div class="group-header">
+    <div class="group-icon" style="background:var(--color-danger)">C</div>
+    <div class="group-title">连接与认证层</div>
+    <div class="group-desc">设备接入的生命周期管理</div>
+  </div>
+  <div class="cards">
+    <a class="card" href="device-connection-auth-flow.html">
+      <div class="card-num">01</div>
+      <div class="card-title">设备连接与认证流程</div>
+      <div class="card-desc">ESP32 设备从 OTA 获取 WebSocket URL，携带 HMAC token 连接服务端，经历两道认证关卡（WebSocket认证 + 设备绑定校验）后进入正常通信。</div>
+      <div class="card-tags">
+        <span class="tag core">WebSocket</span>
+        <span class="tag core">HMAC-SHA256</span>
+        <span class="tag warn">need_bind</span>
+        <span class="tag">OTA</span>
+      </div>
+    </a>
+    <a class="card" href="mqtt-gateway-interaction.html">
+      <div class="card-num">13</div>
+      <div class="card-title">MQTT Gateway 服务交互</div>
+      <div class="card-desc">xiaozhi-mqtt-gateway 桥接 ESP32 与 xiaozhi-server：ESP32 通过 MQTT(:1883)传信令 + UDP(:8884)传音频 → Gateway 协议翻译 → WebSocket(:8000)转发到 server。服务端代码无需修改。</div>
+      <div class="card-tags">
+        <span class="tag core">MQTT</span>
+        <span class="tag io">UDP 音频</span>
+        <span class="tag ok">协议桥接</span>
+        <span class="tag">OTA 凭证</span>
+      </div>
+    </a>
+    <a class="card" href="connection-close-cleanup.html">
+      <div class="card-num">10</div>
+      <div class="card-title">连接关闭与资源清理</div>
+      <div class="card-desc">5种触发源（超时/断开/退出/超限/静默）触发关闭流程，守护线程并行保存记忆和标题，最后释放 TTS/ASR/VAD/WebSocket 资源。</div>
+      <div class="card-tags">
+        <span class="tag warn">超时检测</span>
+        <span class="tag io">守护线程</span>
+        <span class="tag ok">资源释放</span>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- Group 2: 语音对话核心链路 -->
+<div class="group">
+  <div class="group-header">
+    <div class="group-icon" style="background:var(--color-accent)">V</div>
+    <div class="group-title">语音对话核心链路</div>
+    <div class="group-desc">从用户说话到 AI 回复的完整数据流</div>
+  </div>
+  <div class="cards">
+    <a class="card" href="voice-conversation-pipeline.html">
+      <div class="card-num">02</div>
+      <div class="card-title">语音对话主流程</div>
+      <div class="card-desc">15步完整链路：音频bytes → VAD人声检测(Silero ONNX) → ASR流式识别 → startToChat → LLM对话 → TTS合成 → WebSocket音频发送。</div>
+      <div class="card-tags">
+        <span class="tag core">VAD</span>
+        <span class="tag core">ASR</span>
+        <span class="tag core">LLM</span>
+        <span class="tag core">TTS</span>
+        <span class="tag io">声纹识别</span>
+      </div>
+    </a>
+    <a class="card" href="message-routing-dispatch.html">
+      <div class="card-num">03</div>
+      <div class="card-title">消息路由与文本消息分发</div>
+      <div class="card-desc">WebSocket 消息按类型分流：bytes→ASR队列，str→JSON解析→注册表查表分发到 7 种 Handler（hello/abort/listen/iot/mcp/server/ping）。</div>
+      <div class="card-tags">
+        <span class="tag core">注册表模式</span>
+        <span class="tag">7种消息</span>
+        <span class="tag">JSON解析</span>
+      </div>
+    </a>
+    <a class="card" href="llm-streaming-response.html">
+      <div class="card-num">04</div>
+      <div class="card-title">LLM 对话与流式响应处理</div>
+      <div class="card-desc">chat() 方法完整链路：四段式消息组装(静态system+few-shot+动态system+历史) → OpenAI流式SSE → 逐chunk解析 → direct_answer/工具调用/纯文本三种路由。</div>
+      <div class="card-tags">
+        <span class="tag core">流式SSE</span>
+        <span class="tag core">前缀缓存</span>
+        <span class="tag warn">递归深度=5</span>
+      </div>
+    </a>
+    <a class="card" href="tts-synthesis-playback.html">
+      <div class="card-num">05</div>
+      <div class="card-title">TTS 语音合成与播放流水线</div>
+      <div class="card-desc">双线程生产者-消费者模型：文本队列→分段合成→音频队列→60ms间隔播放→WebSocket发送。支持 FIRST/MIDDLE/LAST 三段式状态机。</div>
+      <div class="card-tags">
+        <span class="tag core">双线程</span>
+        <span class="tag io">流控</span>
+        <span class="tag">预缓冲</span>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- Group 3: 意图与工具系统 -->
+<div class="group">
+  <div class="group-header">
+    <div class="group-icon" style="background:var(--color-info)">T</div>
+    <div class="group-title">意图与工具系统</div>
+    <div class="group-desc">智能路由与多协议工具调用</div>
+  </div>
+  <div class="cards">
+    <a class="card" href="intent-tool-call-chain.html">
+      <div class="card-num">06</div>
+      <div class="card-title">意图识别与工具调用链</div>
+      <div class="card-desc">三级预检（退出指令→唤醒词→模式分流）：function_call模式交给LLM自主决策，intent_llm模式独立分析。工具结果支持 RESPONSE/REQLLM/ERROR 三种动作。</div>
+      <div class="card-tags">
+        <span class="tag core">function_call</span>
+        <span class="tag warn">direct_answer</span>
+        <span class="tag">唤醒词</span>
+      </div>
+    </a>
+    <a class="card" href="unified-tool-system.html">
+      <div class="card-num">09</div>
+      <div class="card-title">统一工具系统架构</div>
+      <div class="card-desc">UnifiedToolHandler + ToolManager 统一管理 5 类执行器：Server Plugin(天气/音乐/HA)、Server MCP(stdio/sse)、Device IoT(动态注册)、Device MCP(WS通道)、MCP Endpoint(外部服务)。</div>
+      <div class="card-tags">
+        <span class="tag core">5类执行器</span>
+        <span class="tag io">MCP协议</span>
+        <span class="tag">IoT</span>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- Group 4: 数据与记忆 -->
+<div class="group">
+  <div class="group-header">
+    <div class="group-icon" style="background:var(--color-success)">D</div>
+    <div class="group-title">数据与记忆</div>
+    <div class="group-desc">对话记忆持久化与聊天数据上报</div>
+  </div>
+  <div class="cards">
+    <a class="card" href="memory-load-save.html">
+      <div class="card-num">07</div>
+      <div class="card-title">记忆系统: 加载与保存</div>
+      <div class="card-desc">连接时从 YAML/API 加载历史记忆注入 system prompt；对话中每轮查询记忆；关闭时守护线程调用 LLM"时空记忆编织者"生成结构化 JSON 持久化。</div>
+      <div class="card-tags">
+        <span class="tag core">YAML存储</span>
+        <span class="tag io">glm-4-flash</span>
+        <span class="tag">前缀缓存</span>
+      </div>
+    </a>
+    <a class="card" href="chat-report-upload.html">
+      <div class="card-num">08</div>
+      <div class="card-title">聊天记录上报流程</div>
+      <div class="card-desc">ASR/TTS/工具调用三种数据源 → enqueue入队 → 守护线程消费 → opus转WAV → ManageApiClient POST上报到 manager-api（chatType: 1用户/2智能体/3工具）。</div>
+      <div class="card-tags">
+        <span class="tag io">异步上报</span>
+        <span class="tag">opus→WAV</span>
+        <span class="tag">3种类型</span>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- Group 5: 运维与管理 -->
+<div class="group">
+  <div class="group-header">
+    <div class="group-icon" style="background:var(--color-warning)">O</div>
+    <div class="group-title">运维与管理</div>
+    <div class="group-desc">固件升级与远程管理指令</div>
+  </div>
+  <div class="cards">
+    <a class="card" href="ota-firmware-upgrade.html">
+      <div class="card-num">11</div>
+      <div class="card-title">OTA 固件升级流程</div>
+      <div class="card-desc">设备启动时 POST /xiaozhi/ota/ → OTAHandler解析model/version → 扫描 data/bin/ 目录版本比对 → 生成HMAC token → 返回 WebSocket URL + 固件下载地址。</div>
+      <div class="card-tags">
+        <span class="tag warn">HTTP接口</span>
+        <span class="tag">版本比对</span>
+        <span class="tag core">HMAC token</span>
+      </div>
+    </a>
+    <a class="card" href="server-management-commands.html">
+      <div class="card-num">12</div>
+      <div class="card-title">管理指令处理（server消息）</div>
+      <div class="card-desc">manager-api 通过 WebSocket 发送 server 消息，经 secret 二次验证后分发指令：update_config（热更新组件配置）或 restart（子进程重启服务）。</div>
+      <div class="card-tags">
+        <span class="tag warn">双层密钥</span>
+        <span class="tag core">热更新</span>
+        <span class="tag">子进程重启</span>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- 核心数据流链路 -->
+<div class="flow-chain">
+  <h3>核心数据流链路（一次完整对话）</h3>
+  <div class="chain">
+    <a href="device-connection-auth-flow.html">01 设备连接</a>
+    <span class="arrow">→</span>
+    <a href="message-routing-dispatch.html">03 消息路由</a>
+    <span class="arrow">→</span>
+    <a href="voice-conversation-pipeline.html">02 VAD+ASR</a>
+    <span class="arrow">→</span>
+    <a href="intent-tool-call-chain.html">06 意图预检</a>
+    <span class="arrow">→</span>
+    <a href="llm-streaming-response.html">04 LLM对话</a>
+    <span class="arrow">→</span>
+    <a href="unified-tool-system.html">09 工具调用</a>
+    <span class="arrow">→</span>
+    <a href="tts-synthesis-playback.html">05 TTS播放</a>
+    <span class="arrow">→</span>
+    <a href="chat-report-upload.html">08 聊天记录上报</a>
+    <span class="arrow">→</span>
+    <a href="memory-load-save.html">07 记忆保存</a>
+    <span class="arrow">→</span>
+    <a href="connection-close-cleanup.html">10 连接关闭</a>
+  </div>
+</div>
+
+<div class="source-note">
+  所有流程图均基于 xiaozhi-server 源码深度分析生成 · 支持深色/浅色主题自适应 · 浏览器直接打开即可查看
+</div>
+
+</body>
+</html>

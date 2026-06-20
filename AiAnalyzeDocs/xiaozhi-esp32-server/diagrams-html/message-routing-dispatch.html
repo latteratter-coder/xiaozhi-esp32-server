@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>消息路由与文本消息分发 - xiaozhi-server</title>
+<style>
+:root { --color-bg:#fff;--color-surface:#f8f9fa;--color-surface-elevated:#f0f1f3;--color-text:#1a1a2e;--color-text-muted:#6b7280;--color-accent:#7c3aed;--color-accent-text:#fff;--color-hover:#f3f4f6;--color-border:#e5e7eb;--color-success:#22c55e;--color-warning:#f59e0b;--color-danger:#ef4444;--color-info:#3b82f6;--font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--font-mono:"SF Mono","Fira Code","Cascadia Code",monospace; }
+@media(prefers-color-scheme:dark){:root{--color-bg:#0d1117;--color-surface:#161b22;--color-surface-elevated:#21262d;--color-text:#e6edf3;--color-text-muted:#8b949e;--color-accent:#a78bfa;--color-accent-text:#fff;--color-hover:#21262d;--color-border:#30363d;--color-success:#3fb950;--color-warning:#d29922;--color-danger:#f85149;--color-info:#58a6ff;}}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--color-bg);color:var(--color-text);font-family:var(--font-family);padding:24px;max-width:960px;margin:0 auto}
+h1{font-size:22px;font-weight:600;margin-bottom:4px}
+.subtitle{font-size:13px;color:var(--color-text-muted);margin-bottom:20px}
+svg text{font-family:var(--font-family)}
+.flow-desc{margin-top:16px;padding:16px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:8px}
+.flow-desc h3{font-size:14px;font-weight:600;color:var(--color-accent);margin-bottom:12px}
+.flow-step{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;font-size:13px;line-height:1.6}
+.flow-num{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--color-accent);color:var(--color-accent-text);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.flow-num.green{background:var(--color-success)}.flow-num.red{background:var(--color-danger)}.flow-num.yellow{background:var(--color-warning)}.flow-num.blue{background:var(--color-info)}
+.flow-text{flex:1;padding-top:2px}.flow-text code{font-family:var(--font-mono);font-size:12px;background:var(--color-surface-elevated);padding:1px 5px;border-radius:3px}
+.flow-branch{margin-left:34px;padding-left:12px;border-left:2px solid var(--color-border);margin-bottom:8px}
+.source-ref{margin-top:24px;padding:14px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:8px;font-size:12px;color:var(--color-text-muted)}.source-ref strong{color:var(--color-text)}
+.legend{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap}.legend-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-muted)}.legend-dot{width:10px;height:10px;border-radius:2px}
+.handler-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:8px;padding:14px;margin-top:16px}
+.handler-card h3{font-size:14px;font-weight:600;color:var(--color-accent);margin-bottom:10px}
+.handler-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.handler-item{padding:10px;border:1px solid var(--color-border);border-radius:6px;font-size:12px}
+.handler-item .type{font-weight:600;color:var(--color-accent);font-size:13px;margin-bottom:4px}
+.handler-item .desc{color:var(--color-text-muted);line-height:1.5}
+.handler-item code{font-family:var(--font-mono);font-size:11px;background:var(--color-surface-elevated);padding:1px 4px;border-radius:2px}
+</style>
+</head>
+<body>
+<h1>消息路由与文本消息分发</h1>
+<p class="subtitle">xiaozhi-server · 7种消息类型的注册表分发机制 · 基于源码分析生成</p>
+
+<svg viewBox="0 0 880 520" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="var(--color-text-muted)"/></marker>
+    <marker id="arr-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="var(--color-success)"/></marker>
+  </defs>
+
+  <text x="16" y="28" font-size="12" font-weight="600" fill="var(--color-text-muted)">PHASE 1 · 消息入口</text>
+  <text x="16" y="155" font-size="12" font-weight="600" fill="var(--color-text-muted)">PHASE 2 · 解析分发</text>
+  <text x="16" y="300" font-size="12" font-weight="600" fill="var(--color-text-muted)">PHASE 3 · 7种Handler</text>
+  <line x1="10" y1="140" x2="870" y2="140" stroke="var(--color-border)" stroke-dasharray="4 3"/>
+  <line x1="10" y1="285" x2="870" y2="285" stroke="var(--color-border)" stroke-dasharray="4 3"/>
+
+  <!-- ① WebSocket消息到达 -->
+  <rect x="80" y="48" width="160" height="50" rx="8" fill="var(--color-surface)" stroke="var(--color-accent)" stroke-width="1.5"/>
+  <text x="160" y="68" text-anchor="middle" font-size="13" font-weight="500" fill="var(--color-text)">WebSocket 消息</text>
+  <text x="160" y="84" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">str 或 bytes</text>
+  <line x1="240" y1="73" x2="325" y2="73" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="282" cy="61" r="11" fill="var(--color-accent)"/><text x="282" y="65" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">1</text>
+
+  <!-- ② _route_message -->
+  <rect x="330" y="48" width="180" height="50" rx="8" fill="rgba(124,58,237,0.1)" stroke="var(--color-accent)" stroke-width="1.5"/>
+  <text x="420" y="68" text-anchor="middle" font-size="13" font-weight="500" fill="var(--color-text)">_route_message()</text>
+  <text x="420" y="84" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">connection.py 消息路由</text>
+
+  <!-- 分支: bytes vs str -->
+  <line x1="420" y1="98" x2="300" y2="160" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="345" cy="130" r="11" fill="var(--color-accent)"/><text x="345" y="134" text-anchor="middle" font-size="9" font-weight="600" fill="var(--color-accent-text)">2a</text>
+  <rect x="160" y="160" width="165" height="45" rx="8" fill="var(--color-surface)" stroke="var(--color-info)"/>
+  <text x="242" y="178" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">bytes → asr_audio_queue</text>
+  <text x="242" y="194" text-anchor="middle" font-size="10" fill="var(--color-info)">音频帧入队列</text>
+
+  <line x1="420" y1="98" x2="540" y2="160" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="495" cy="130" r="11" fill="var(--color-accent)"/><text x="495" y="134" text-anchor="middle" font-size="9" font-weight="600" fill="var(--color-accent-text)">2b</text>
+  <rect x="460" y="160" width="185" height="45" rx="8" fill="rgba(124,58,237,0.1)" stroke="var(--color-accent)"/>
+  <text x="552" y="178" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text)">handleTextMessage()</text>
+  <text x="552" y="194" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">str → 文本消息处理</text>
+
+  <!-- ③ TextMessageProcessor -->
+  <line x1="552" y1="205" x2="552" y2="230" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="540" cy="220" r="11" fill="var(--color-accent)"/><text x="540" y="224" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">3</text>
+  <rect x="440" y="233" width="225" height="45" rx="8" fill="var(--color-surface)" stroke="var(--color-border)"/>
+  <text x="552" y="253" text-anchor="middle" font-size="13" font-weight="500" fill="var(--color-text)">TextMessageProcessor</text>
+  <text x="552" y="268" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">json.loads() → 解析JSON</text>
+
+  <!-- ④ Registry查表 -->
+  <line x1="552" y1="278" x2="552" y2="305" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="540" cy="294" r="11" fill="var(--color-accent)"/><text x="540" y="298" text-anchor="middle" font-size="10" font-weight="600" fill="var(--color-accent-text)">4</text>
+  <rect x="415" y="308" width="275" height="40" rx="8" fill="rgba(245,158,11,0.12)" stroke="var(--color-warning)" stroke-width="1.5"/>
+  <text x="552" y="326" text-anchor="middle" font-size="13" font-weight="500" fill="var(--color-text)">TextMessageHandlerRegistry</text>
+  <text x="552" y="341" text-anchor="middle" font-size="10" fill="var(--color-warning)">get_handler(type) → 查表分发</text>
+
+  <!-- ⑤-⑪ 7种Handler -->
+  <line x1="415" y1="328" x2="120" y2="380" stroke="var(--color-text-muted)" stroke-width="1" stroke-dasharray="3 2"/>
+  <line x1="440" y1="338" x2="230" y2="380" stroke="var(--color-text-muted)" stroke-width="1" stroke-dasharray="3 2"/>
+  <line x1="480" y1="348" x2="340" y2="380" stroke="var(--color-text-muted)" stroke-width="1" stroke-dasharray="3 2"/>
+  <line x1="552" y1="348" x2="450" y2="380" stroke="var(--color-text-muted)" stroke-width="1" stroke-dasharray="3 2"/>
+  <line x1="610" y1="348" x2="560" y2="380" stroke="var(--color-text-muted)" stroke-width="1" stroke-dasharray="3 2"/>
+  <line x1="650" y1="338" x2="670" y2="380" stroke="var(--color-text-muted)" stroke-width="1" stroke-dasharray="3 2"/>
+  <line x1="690" y1="328" x2="780" y2="380" stroke="var(--color-text-muted)" stroke-width="1" stroke-dasharray="3 2"/>
+
+  <rect x="50" y="383" width="110" height="60" rx="6" fill="var(--color-surface)" stroke="var(--color-success)"/>
+  <circle cx="63" cy="395" r="9" fill="var(--color-success)"/><text x="63" y="399" text-anchor="middle" font-size="8" font-weight="600" fill="white">5</text>
+  <text x="105" y="401" text-anchor="middle" font-size="11" font-weight="500" fill="var(--color-text)">hello</text>
+  <text x="105" y="416" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">握手+音频参数</text>
+  <text x="105" y="430" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">+MCP初始化</text>
+
+  <rect x="170" y="383" width="110" height="60" rx="6" fill="var(--color-surface)" stroke="var(--color-danger)"/>
+  <circle cx="183" cy="395" r="9" fill="var(--color-danger)"/><text x="183" y="399" text-anchor="middle" font-size="8" font-weight="600" fill="white">6</text>
+  <text x="225" y="401" text-anchor="middle" font-size="11" font-weight="500" fill="var(--color-text)">abort</text>
+  <text x="225" y="416" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">打断LLM/TTS</text>
+  <text x="225" y="430" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">清空队列+状态</text>
+
+  <rect x="290" y="383" width="110" height="60" rx="6" fill="var(--color-surface)" stroke="var(--color-accent)"/>
+  <circle cx="303" cy="395" r="9" fill="var(--color-accent)"/><text x="303" y="399" text-anchor="middle" font-size="8" font-weight="600" fill="var(--color-accent-text)">7</text>
+  <text x="345" y="401" text-anchor="middle" font-size="11" font-weight="500" fill="var(--color-text)">listen</text>
+  <text x="345" y="416" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">start/stop/detect</text>
+  <text x="345" y="430" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">语音控制核心</text>
+
+  <rect x="410" y="383" width="100" height="60" rx="6" fill="var(--color-surface)" stroke="var(--color-info)"/>
+  <circle cx="423" cy="395" r="9" fill="var(--color-info)"/><text x="423" y="399" text-anchor="middle" font-size="8" font-weight="600" fill="white">8</text>
+  <text x="460" y="401" text-anchor="middle" font-size="11" font-weight="500" fill="var(--color-text)">iot</text>
+  <text x="460" y="416" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">设备描述符</text>
+  <text x="460" y="430" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">+状态上报</text>
+
+  <rect x="520" y="383" width="100" height="60" rx="6" fill="var(--color-surface)" stroke="var(--color-info)"/>
+  <circle cx="533" cy="395" r="9" fill="var(--color-info)"/><text x="533" y="399" text-anchor="middle" font-size="8" font-weight="600" fill="white">9</text>
+  <text x="570" y="401" text-anchor="middle" font-size="11" font-weight="500" fill="var(--color-text)">mcp</text>
+  <text x="570" y="416" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">MCP协议消息</text>
+  <text x="570" y="430" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">设备端MCP</text>
+
+  <rect x="630" y="383" width="110" height="60" rx="6" fill="var(--color-surface)" stroke="var(--color-warning)"/>
+  <circle cx="643" cy="395" r="9" fill="var(--color-warning)"/><text x="643" y="399" text-anchor="middle" font-size="8" font-weight="600" fill="white">10</text>
+  <text x="685" y="401" text-anchor="middle" font-size="11" font-weight="500" fill="var(--color-text)">server</text>
+  <text x="685" y="416" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">管理指令</text>
+  <text x="685" y="430" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">配置更新/重启</text>
+
+  <rect x="750" y="383" width="110" height="60" rx="6" fill="var(--color-surface)" stroke="var(--color-border)"/>
+  <circle cx="763" cy="395" r="9" fill="var(--color-text-muted)"/><text x="763" y="399" text-anchor="middle" font-size="8" font-weight="600" fill="white">11</text>
+  <text x="805" y="401" text-anchor="middle" font-size="11" font-weight="500" fill="var(--color-text)">ping</text>
+  <text x="805" y="416" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">心跳保活</text>
+  <text x="805" y="430" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">PONG响应</text>
+
+  <!-- 异常分支 -->
+  <rect x="160" y="470" width="170" height="30" rx="6" fill="rgba(239,68,68,0.08)" stroke="var(--color-danger)" stroke-dasharray="4 3"/>
+  <text x="245" y="490" text-anchor="middle" font-size="10" fill="var(--color-danger)">JSON解析失败 → 直接回传</text>
+  <rect x="345" y="470" width="170" height="30" rx="6" fill="rgba(239,68,68,0.08)" stroke="var(--color-danger)" stroke-dasharray="4 3"/>
+  <text x="430" y="490" text-anchor="middle" font-size="10" fill="var(--color-danger)">未知type → 日志报错</text>
+  <rect x="530" y="470" width="170" height="30" rx="6" fill="rgba(245,158,11,0.08)" stroke="var(--color-warning)" stroke-dasharray="4 3"/>
+  <text x="615" y="490" text-anchor="middle" font-size="10" fill="var(--color-warning)">纯数字int → 原样回传</text>
+</svg>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--color-success)"></div>握手类</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--color-danger)"></div>控制类</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--color-accent)"></div>语音核心</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--color-info)"></div>扩展协议</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--color-warning)"></div>管理类</div>
+</div>
+
+<div class="handler-card">
+  <h3>7种消息处理器详情</h3>
+  <div class="handler-grid">
+    <div class="handler-item"><div class="type">⑤ hello</div><div class="desc">客户端握手：交换 <code>audio_params</code>（音频格式）+ <code>features</code>（特性标志）。若支持 MCP 则初始化 <code>MCPClient</code> 并发送初始化消息。最后返回 <code>welcome_msg</code>。</div></div>
+    <div class="handler-item"><div class="type">⑥ abort</div><div class="desc">打断当前对话：设置 <code>client_abort=True</code>，清空 TTS/ASR 队列，发送 TTS stop 信号，重置说话状态。LLM 流式循环检测到此标志后自动终止。</div></div>
+    <div class="handler-item"><div class="type">⑦ listen</div><div class="desc">语音控制核心，3种 state：<code>start</code>（重置音频状态）→ <code>stop</code>（触发ASR识别）→ <code>detect</code>（直接使用文本，跳过ASR，支持唤醒词和 [device_call] 指令）。</div></div>
+    <div class="handler-item"><div class="type">⑧ iot</div><div class="desc">IoT设备管理：<code>descriptors</code>（设备能力描述符注册）+ <code>states</code>（设备状态上报）。异步处理，不阻塞主流程。</div></div>
+    <div class="handler-item"><div class="type">⑨ mcp</div><div class="desc">设备端 MCP 协议消息：将 <code>payload</code> 转发给 <code>MCPClient</code> 处理。支持 MCP 初始化、工具列表、工具调用结果等消息。</div></div>
+    <div class="handler-item"><div class="type">⑩ server</div><div class="desc">管理指令处理：先进行 <code>secret</code> 二次验证，再分发 action：<code>update_config</code>（热更新配置）/ <code>restart</code>（重启服务）。</div></div>
+    <div class="handler-item"><div class="type">⑪ ping</div><div class="desc">WebSocket 心跳保活：需启用 <code>enable_websocket_ping</code>。收到后更新活动时间戳，返回 <code>{"type":"pong"}</code> 响应。</div></div>
+  </div>
+</div>
+
+<div class="flow-desc">
+  <h3>流程说明</h3>
+  <div class="flow-step"><div class="flow-num">1</div><div class="flow-text">WebSocket 消息到达 <code>_route_message()</code>，首先按类型分流：<code>str</code>（文本JSON）vs <code>bytes</code>（音频帧）</div></div>
+  <div class="flow-step"><div class="flow-num green">2a</div><div class="flow-text"><code>bytes</code> 音频帧 → 直接放入 <code>asr_audio_queue</code>，由 ASR 线程消费处理</div></div>
+  <div class="flow-branch"><div class="flow-step"><div class="flow-num blue">2b</div><div class="flow-text"><code>str</code> 文本 → 进入 <code>handleTextMessage()</code> → <code>TextMessageProcessor</code></div></div></div>
+  <div class="flow-step"><div class="flow-num">3</div><div class="flow-text"><code>TextMessageProcessor.process_message()</code> 对消息执行 <code>json.loads()</code> 解析，提取 <code>type</code> 字段</div></div>
+  <div class="flow-step"><div class="flow-num">4</div><div class="flow-text"><code>TextMessageHandlerRegistry.get_handler(type)</code> 从注册表中查找对应的 Handler 实例（基于 <code>TextMessageType</code> 枚举值匹配）</div></div>
+  <div class="flow-step"><div class="flow-num green">5-11</div><div class="flow-text">7种 Handler 各自独立处理：hello(握手) / abort(打断) / listen(语音) / iot(设备) / mcp(协议) / server(管理) / ping(心跳)</div></div>
+  <div class="flow-branch">
+    <div class="flow-step"><div class="flow-num red">!</div><div class="flow-text">JSON 解析失败 → 将原始消息回传给客户端</div></div>
+    <div class="flow-step"><div class="flow-num red">!</div><div class="flow-text">未知 type → 记录错误日志，不做任何处理</div></div>
+    <div class="flow-step"><div class="flow-num yellow">!</div><div class="flow-text">纯数字 int 消息 → 原样回传（兼容特殊客户端）</div></div>
+  </div>
+</div>
+
+<div class="source-ref">
+  <strong>源码引用:</strong><br>
+  core/connection.py — _route_message()<br>
+  core/handle/textHandle.py — handleTextMessage()<br>
+  core/handle/textMessageProcessor.py — TextMessageProcessor.process_message()<br>
+  core/handle/textMessageHandlerRegistry.py — 注册7种Handler<br>
+  core/handle/textMessageType.py — TextMessageType枚举 (hello/abort/listen/iot/mcp/server/ping)<br>
+  core/handle/textHandler/*.py — 7个具体Handler实现
+</div>
+</body>
+</html>

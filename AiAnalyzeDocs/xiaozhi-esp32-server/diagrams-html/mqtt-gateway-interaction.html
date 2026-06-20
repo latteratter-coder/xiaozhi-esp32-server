@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MQTT Gateway 服务交互 - xiaozhi-server</title>
+<style>
+:root {
+  --color-bg: #ffffff; --color-surface: #f8f9fa; --color-surface-elevated: #f0f1f3;
+  --color-text: #1a1a2e; --color-text-muted: #6b7280; --color-accent: #7c3aed;
+  --color-accent-text: #ffffff; --color-hover: #f3f4f6; --color-border: #e5e7eb;
+  --color-success: #22c55e; --color-warning: #f59e0b; --color-danger: #ef4444;
+  --color-info: #3b82f6;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --color-bg: #0d1117; --color-surface: #161b22; --color-surface-elevated: #21262d;
+  --color-text: #e6edf3; --color-text-muted: #8b949e; --color-accent: #a78bfa;
+  --color-accent-text: #ffffff; --color-hover: #21262d; --color-border: #30363d;
+  --color-success: #3fb950; --color-warning: #d29922; --color-danger: #f85149;
+  --color-info: #58a6ff;
+}}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--color-bg); color: var(--color-text); font-family: var(--font-family); padding: 24px; max-width: 960px; margin: 0 auto; }
+h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: var(--color-text-muted); margin-bottom: 20px; }
+svg text { font-family: var(--font-family); }
+.tab-bar { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab { padding: 7px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); transition: all 0.15s; }
+.tab.active { background: var(--color-accent); color: var(--color-accent-text); border-color: var(--color-accent); }
+.tab:hover:not(.active) { background: var(--color-hover); }
+.diagram-wrap { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 16px; }
+.detail-panel { margin-top: 16px; padding: 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; }
+.detail-panel h3 { font-size: 15px; font-weight: 600; color: var(--color-accent); margin-bottom: 12px; }
+.flow-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: 13px; line-height: 1.6; }
+.flow-num { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: #fff; margin-top: 2px; }
+.flow-num.ota { background: var(--color-warning); }
+.flow-num.mqtt { background: var(--color-info); }
+.flow-num.udp { background: var(--color-success); }
+.flow-num.ws { background: var(--color-accent); }
+.flow-num.key { background: var(--color-accent); }
+.flow-text { flex: 1; padding-top: 2px; }
+.flow-text code { font-family: var(--font-mono); font-size: 12px; background: var(--color-surface-elevated); padding: 1px 5px; border-radius: 3px; }
+.legend { display: flex; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--color-text-muted); }
+.legend-line { width: 24px; height: 3px; border-radius: 2px; }
+.why-box { margin-top: 16px; padding: 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; }
+.why-box h3 { font-size: 15px; font-weight: 600; color: var(--color-accent); margin-bottom: 12px; }
+.compare-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.compare-table th { text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--color-border); color: var(--color-text-muted); font-size: 12px; font-weight: 500; }
+.compare-table td { padding: 8px 10px; border-bottom: 1px solid var(--color-border); }
+.compare-table tr:last-child td { border-bottom: none; }
+.compare-table .good { color: var(--color-success); font-weight: 500; }
+.compare-table .bad { color: var(--color-text-muted); }
+.source-ref { margin-top: 24px; padding: 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; font-size: 12px; color: var(--color-text-muted); }
+.source-ref strong { color: var(--color-text); }
+.source-ref a { color: var(--color-accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<h1>MQTT Gateway 服务交互</h1>
+<p class="subtitle">xiaozhi-mqtt-gateway 桥接 ESP32 设备与 xiaozhi-server · MQTT(:1883) + UDP(:8884) → WebSocket(:8000)</p>
+
+<div class="tab-bar">
+  <div class="tab active" data-tab="boot">① 设备启动（OTA 下发凭证）</div>
+  <div class="tab" data-tab="talk">② 对话流程（语音交互）</div>
+  <div class="tab" data-tab="arch">③ 架构总览</div>
+  <div class="tab" data-tab="why">④ 为什么用 MQTT</div>
+</div>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 800 560" id="mainSvg">
+  <defs>
+    <marker id="ah-gray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#9ca3af"/></marker>
+    <marker id="ah-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f59e0b"/></marker>
+    <marker id="ah-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#3b82f6"/></marker>
+    <marker id="ah-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#22c55e"/></marker>
+    <marker id="ah-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#7c3aed"/></marker>
+  </defs>
+
+  <!-- ============================================================ -->
+  <!-- 组件框 (顶部 y=10-160, 底部 y=440-510) -->
+  <!-- ============================================================ -->
+
+  <!-- ESP32: x=20..175 -->
+  <rect x="20" y="15" width="155" height="115" rx="8" fill="#E8F5E9" stroke="#66BB6A" stroke-width="1.5"/>
+  <text x="97" y="44" text-anchor="middle" font-size="14" font-weight="600" fill="#2e7d32">ESP32 设备</text>
+  <text x="97" y="66" text-anchor="middle" font-size="11" fill="#6b7280" font-family="var(--font-mono)">MQTT Client + UDP</text>
+  <text x="97" y="88" text-anchor="middle" font-size="10" fill="#3b82f6" font-family="var(--font-mono)">:1883 信令</text>
+  <text x="97" y="106" text-anchor="middle" font-size="10" fill="#22c55e" font-family="var(--font-mono)">:8884 音频</text>
+
+  <!-- Gateway: x=280..480 -->
+  <rect x="280" y="10" width="200" height="150" rx="8" fill="#E3F2FD" stroke="#42A5F5" stroke-width="1.5"/>
+  <text x="380" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#1565c0">MQTT Gateway</text>
+  <text x="380" y="56" text-anchor="middle" font-size="11" fill="#6b7280" font-family="var(--font-mono)">Node.js · pm2</text>
+  <text x="380" y="80" text-anchor="middle" font-size="11" fill="#3b82f6" font-family="var(--font-mono)">:1883 MQTT Broker</text>
+  <text x="380" y="100" text-anchor="middle" font-size="11" fill="#22c55e" font-family="var(--font-mono)">:8884 UDP Audio</text>
+  <text x="380" y="120" text-anchor="middle" font-size="11" fill="#9ca3af" font-family="var(--font-mono)">:8007 管理 API</text>
+  <text x="380" y="148" text-anchor="middle" font-size="10" fill="#9ca3af">协议翻译层</text>
+
+  <!-- xiaozhi-server: x=590..780 -->
+  <rect x="590" y="15" width="190" height="140" rx="8" fill="#F3E5F5" stroke="#AB47BC" stroke-width="1.5"/>
+  <text x="685" y="44" text-anchor="middle" font-size="14" font-weight="600" fill="#7b1fa2">xiaozhi-server</text>
+  <text x="685" y="64" text-anchor="middle" font-size="11" fill="#6b7280" font-family="var(--font-mono)">Python · Docker</text>
+  <text x="685" y="88" text-anchor="middle" font-size="11" fill="#7c3aed" font-family="var(--font-mono)">:8000 WebSocket</text>
+  <text x="685" y="108" text-anchor="middle" font-size="11" fill="#f59e0b" font-family="var(--font-mono)">:8003 HTTP/OTA</text>
+  <text x="685" y="128" text-anchor="middle" font-size="10" fill="#9ca3af">ASR → LLM → TTS</text>
+
+  <!-- manager-api: x=280..480 -->
+  <rect x="280" y="440" width="200" height="70" rx="8" fill="#FFF3E0" stroke="#FFA726" stroke-width="1.5"/>
+  <text x="380" y="470" text-anchor="middle" font-size="14" font-weight="600" fill="#e65100">manager-api</text>
+  <text x="380" y="492" text-anchor="middle" font-size="11" fill="#6b7280" font-family="var(--font-mono)">Java · :8002 智控台</text>
+
+  <!-- MySQL: x=590..780 -->
+  <rect x="590" y="440" width="190" height="70" rx="8" fill="#FFEBEE" stroke="#EF5350" stroke-width="1.5"/>
+  <text x="685" y="470" text-anchor="middle" font-size="14" font-weight="600" fill="#c62828">MySQL + Redis</text>
+  <text x="685" y="492" text-anchor="middle" font-size="11" fill="#6b7280" font-family="var(--font-mono)">:3306 / :6379</text>
+
+  <!-- ============================================================ -->
+  <!-- 静态连线 -->
+  <!-- ============================================================ -->
+
+  <!-- API → DB -->
+  <path d="M 480 475 L 590 475" stroke="#9ca3af" stroke-width="1.5" fill="none" marker-end="url(#ah-gray)"/>
+  <text x="535" y="468" text-anchor="middle" font-size="10" fill="#9ca3af" font-family="var(--font-mono)">SQL / Redis</text>
+
+  <!-- Gateway → API (灰色虚线: 走最左侧 x=10, 完全避开 Boot 箭头) -->
+  <path d="M 280 130 L 10 130 L 10 475 L 280 475" stroke="#9ca3af" stroke-width="1" fill="none" stroke-dasharray="4,4"/>
+  <text x="5" y="310" font-size="10" fill="#9ca3af" font-family="var(--font-mono)" transform="rotate(-90, 5, 310)" text-anchor="middle">HTTP :8007</text>
+
+  <!-- ============================================================ -->
+  <!-- Boot 箭头 (橙色): ESP32 ↔ xiaozhi-server OTA -->
+  <!-- 绕行区域: y=190..330, 在所有组件框之间 -->
+  <!-- ============================================================ -->
+  <g id="arrows-boot">
+    <!-- ① ESP32 POST → xiaozhi-server:8003 -->
+    <path d="M 175 110 L 175 210 L 685 210 L 685 155" stroke="#f59e0b" stroke-width="2" fill="none" marker-end="url(#ah-orange)"/>
+    <circle cx="430" cy="198" r="14" fill="#f59e0b"/>
+    <text x="430" y="203" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">1</text>
+    <text x="430" y="185" text-anchor="middle" font-size="11" fill="#f59e0b" font-family="var(--font-mono)">POST /xiaozhi/ota/ → :8003</text>
+
+    <!-- ② xiaozhi-server 返回 → ESP32 -->
+    <path d="M 640 155 L 640 260 L 50 260 L 50 130" stroke="#f59e0b" stroke-width="2" fill="none" stroke-dasharray="6,3" marker-end="url(#ah-orange)"/>
+    <circle cx="345" cy="248" r="14" fill="#f59e0b"/>
+    <text x="345" y="253" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">2</text>
+    <text x="345" y="282" text-anchor="middle" font-size="11" fill="#f59e0b" font-family="var(--font-mono)">返回 mqtt{endpoint,password,topics}</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- MQTT 信令 (蓝色): ESP32 ↔ Gateway  y=40..65 -->
+  <!-- ============================================================ -->
+  <g id="arrows-mqtt" style="opacity:0.2">
+    <path d="M 175 42 L 280 42" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#ah-blue)"/>
+    <circle cx="228" cy="30" r="14" fill="#3b82f6"/>
+    <text x="228" y="35" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">1</text>
+
+    <path d="M 280 65 L 175 65" stroke="#3b82f6" stroke-width="2" fill="none" stroke-dasharray="4,3" marker-end="url(#ah-blue)"/>
+    <circle cx="228" cy="77" r="14" fill="#3b82f6"/>
+    <text x="228" y="82" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">7</text>
+    <text x="228" y="98" text-anchor="middle" font-size="10" fill="#3b82f6" font-family="var(--font-mono)">MQTT :1883</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- UDP 音频 (绿色): ESP32 ↔ Gateway  y=108..128 -->
+  <!-- ============================================================ -->
+  <g id="arrows-udp" style="opacity:0.2">
+    <path d="M 175 108 L 280 108" stroke="#22c55e" stroke-width="2.5" fill="none" marker-end="url(#ah-green)"/>
+    <circle cx="228" cy="120" r="14" fill="#22c55e"/>
+    <text x="228" y="125" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">2</text>
+
+    <path d="M 280 130 L 175 130" stroke="#22c55e" stroke-width="2.5" fill="none" marker-end="url(#ah-green)"/>
+    <circle cx="228" cy="142" r="14" fill="#22c55e"/>
+    <text x="228" y="147" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">6</text>
+    <text x="228" y="163" text-anchor="middle" font-size="10" fill="#22c55e" font-family="var(--font-mono)">UDP :8884</text>
+  </g>
+
+  <!-- ============================================================ -->
+  <!-- WebSocket (紫色): Gateway ↔ xiaozhi-server  y=42..72 -->
+  <!-- ============================================================ -->
+  <g id="arrows-ws" style="opacity:0.2">
+    <path d="M 480 45 L 590 45" stroke="#7c3aed" stroke-width="2" fill="none" marker-end="url(#ah-purple)"/>
+    <circle cx="535" cy="33" r="14" fill="#7c3aed"/>
+    <text x="535" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">3</text>
+
+    <path d="M 590 72 L 480 72" stroke="#7c3aed" stroke-width="2" fill="none" marker-end="url(#ah-purple)"/>
+    <circle cx="535" cy="84" r="14" fill="#7c3aed"/>
+    <text x="535" y="89" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">5</text>
+    <text x="535" y="106" text-anchor="middle" font-size="10" fill="#7c3aed" font-family="var(--font-mono)">WS :8000</text>
+    <text x="535" y="120" text-anchor="middle" font-size="9" fill="#7c3aed" font-family="var(--font-mono)">?from=mqtt_gateway</text>
+  </g>
+</svg>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-line" style="background:#f59e0b"></div>OTA 配置下发</div>
+  <div class="legend-item"><div class="legend-line" style="background:#3b82f6"></div>MQTT 信令 :1883</div>
+  <div class="legend-item"><div class="legend-line" style="background:#22c55e"></div>UDP 音频 :8884</div>
+  <div class="legend-item"><div class="legend-line" style="background:#7c3aed"></div>WebSocket 桥接</div>
+</div>
+
+<div class="detail-panel" id="detailPanel">
+  <h3 id="detailTitle">① 设备启动流程（OTA 下发 MQTT 凭证）</h3>
+  <div id="detailContent">
+    <div class="flow-step"><div class="flow-num ota">1</div><div class="flow-text"><strong>ESP32 上电</strong>，向 xiaozhi-server 发送 OTA POST 请求<br><code>POST http://server:8003/xiaozhi/ota/</code></div></div>
+    <div class="flow-step"><div class="flow-num ota">2</div><div class="flow-text"><strong>xiaozhi-server OTAHandler 组装响应</strong>，从 <code>server</code> 配置读取 <code>mqtt_gateway</code>、<code>mqtt_signature_key</code>，生成 MQTT 凭证并返回</div></div>
+    <div class="flow-step"><div class="flow-num ota">3</div><div class="flow-text">OTA 响应中包含 <code>mqtt</code> 字段：<br><code>mqtt.endpoint</code> = "公网IP:1883"（MQTT Broker 地址）<br><code>mqtt.client_id</code> = "GID_default@@@设备MAC@@@clientId"<br><code>mqtt.username</code> = Base64({"ip":"unknown"})<br><code>mqtt.password</code> = HMAC-SHA256签名（clientId|username, mqtt_signature_key）<br><code>mqtt.publish_topic</code> = "device-server"<br><code>mqtt.subscribe_topic</code> = "devices/p2p/设备MAC"</div></div>
+    <div class="flow-step"><div class="flow-num mqtt">4</div><div class="flow-text"><strong>ESP32 连接 MQTT Broker</strong>（Gateway :1883），使用返回的凭证认证，订阅自己的 topic</div></div>
+    <div class="flow-step"><div class="flow-num udp">5</div><div class="flow-text"><strong>ESP32 建立 UDP 通道</strong>（Gateway :8884），用于实时音频双向传输</div></div>
+  </div>
+</div>
+
+<div class="why-box" id="whyBox" style="display:none">
+  <h3>④ 为什么用 MQTT 而不是 WebSocket 直连？</h3>
+  <table class="compare-table">
+    <thead><tr><th>对比维度</th><th>WebSocket 直连</th><th>MQTT + UDP</th></tr></thead>
+    <tbody>
+      <tr><td>断线重连</td><td class="bad">慢（完整 HTTP 握手）</td><td class="good">快（持久会话，直接恢复）</td></tr>
+      <tr><td>NAT 穿透</td><td class="bad">长连接易被路由器超时清除</td><td class="good">内置 Keepalive 心跳</td></tr>
+      <tr><td>音频延迟</td><td class="bad">较高（TCP 拥塞控制 + 队头阻塞）</td><td class="good">低（UDP 直传，无拥塞）</td></tr>
+      <tr><td>功耗</td><td class="bad">较高（TCP 开销大）</td><td class="good">较低（MQTT 协议轻量）</td></tr>
+      <tr><td>单机连接数</td><td class="bad">~3 万/Python进程</td><td class="good">~50 万/MQTT Broker 节点</td></tr>
+      <tr><td>WiFi 休眠唤醒</td><td class="bad">需重建连接</td><td class="good">唤醒后直接恢复会话</td></tr>
+      <tr><td>适合场景</td><td class="bad">开发调试、局域网测试</td><td class="good">真实产品部署、百万设备</td></tr>
+    </tbody>
+  </table>
+  <div class="flow-step" style="margin-top:14px"><div class="flow-num key">★</div><div class="flow-text"><strong>Gateway 的核心价值</strong>：对 ESP32 是 MQTT Broker + UDP 服务器，对 xiaozhi-server 是普通 WebSocket 客户端。<strong>服务端代码完全不用改</strong>，只需配置参数。</div></div>
+  <div class="flow-step"><div class="flow-num key">★</div><div class="flow-text"><strong>为什么要分 MQTT + UDP？</strong> MQTT 传控制信令（"开始录音"、"停止"等小消息，需要可靠传输）；UDP 传音频流（Opus 编码大数据量，需要低延迟，允许丢包）。各司其职。</div></div>
+</div>
+
+<div class="source-ref">
+  <strong>源码参考</strong>：<a href="https://github.com/xinnan-tech/xiaozhi-mqtt-gateway" target="_blank">xinnan-tech/xiaozhi-mqtt-gateway</a> · 项目文档 <a href="../../docs/mqtt-gateway-integration.md">docs/mqtt-gateway-integration.md</a><br>
+  <strong>配置入口</strong>：智控台参数管理 → <code>server.mqtt_gateway</code> / <code>server.udp_gateway</code> / <code>server.mqtt_signature_key</code>
+</div>
+
+<script>
+const tabs = document.querySelectorAll('.tab');
+const title = document.getElementById('detailTitle');
+const content = document.getElementById('detailContent');
+const detailPanel = document.getElementById('detailPanel');
+const whyBox = document.getElementById('whyBox');
+const bootA = document.getElementById('arrows-boot');
+const mqttA = document.getElementById('arrows-mqtt');
+const udpA = document.getElementById('arrows-udp');
+const wsA = document.getElementById('arrows-ws');
+
+function highlight(tab) {
+  [bootA, mqttA, udpA, wsA].forEach(g => g.style.opacity = '0.15');
+  if (tab === 'boot') { bootA.style.opacity = '1'; }
+  if (tab === 'talk') { mqttA.style.opacity = '1'; udpA.style.opacity = '1'; wsA.style.opacity = '1'; }
+  if (tab === 'arch') { [bootA, mqttA, udpA, wsA].forEach(g => g.style.opacity = '1'); }
+}
+
+tabs.forEach(t => t.addEventListener('click', () => {
+  tabs.forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  const tab = t.dataset.tab;
+  highlight(tab);
+
+  whyBox.style.display = tab === 'why' ? 'block' : 'none';
+  detailPanel.style.display = tab === 'why' ? 'none' : 'block';
+
+  if (tab === 'boot') {
+    title.textContent = '① 设备启动流程（OTA 下发 MQTT 凭证）';
+    content.innerHTML = `
+      <div class="flow-step"><div class="flow-num ota">1</div><div class="flow-text"><strong>ESP32 上电</strong>，向 xiaozhi-server 发送 OTA POST 请求<br><code>POST http://server:8003/xiaozhi/ota/</code></div></div>
+      <div class="flow-step"><div class="flow-num ota">2</div><div class="flow-text"><strong>xiaozhi-server OTAHandler 组装响应</strong>，从 <code>server</code> 配置读取 <code>mqtt_gateway</code>、<code>mqtt_signature_key</code>，生成 MQTT 凭证</div></div>
+      <div class="flow-step"><div class="flow-num ota">3</div><div class="flow-text">OTA 响应包含 <code>mqtt</code> 字段：<br><code>mqtt.endpoint</code> = "公网IP:1883"<br><code>mqtt.client_id</code> = "GID_default@@@设备MAC@@@clientId"<br><code>mqtt.username</code> = Base64({"ip":"unknown"})<br><code>mqtt.password</code> = HMAC-SHA256签名<br><code>mqtt.publish_topic</code> = "device-server"<br><code>mqtt.subscribe_topic</code> = "devices/p2p/设备MAC"</div></div>
+      <div class="flow-step"><div class="flow-num mqtt">4</div><div class="flow-text"><strong>ESP32 连接 MQTT Broker</strong>（Gateway :1883），使用凭证认证，订阅自己的 topic</div></div>
+      <div class="flow-step"><div class="flow-num udp">5</div><div class="flow-text"><strong>ESP32 建立 UDP 通道</strong>（Gateway :8884），用于实时音频双向传输</div></div>
+    `;
+  }
+  if (tab === 'talk') {
+    title.textContent = '② 对话流程（语音交互）';
+    content.innerHTML = `
+      <div class="flow-step"><div class="flow-num mqtt">1</div><div class="flow-text"><strong>ESP32 → Gateway</strong>：通过 MQTT 发送控制信令<br><code>{"type":"listen","state":"start"}</code>（开始录音）<br><code>publish_topic: "device-server"</code></div></div>
+      <div class="flow-step"><div class="flow-num udp">2</div><div class="flow-text"><strong>ESP32 → Gateway</strong>：通过 UDP :8884 实时发送 Opus 音频帧</div></div>
+      <div class="flow-step"><div class="flow-num ws">3</div><div class="flow-text"><strong>Gateway → xiaozhi-server</strong>：Gateway 作为 WebSocket 客户端，将 MQTT 信令 + UDP 音频转发到 server<br><code>ws://server:8000/xiaozhi/v1/?from=mqtt_gateway</code></div></div>
+      <div class="flow-step"><div class="flow-num ws">4</div><div class="flow-text"><strong>xiaozhi-server 处理</strong>：ASR(语音→文字) → LLM(生成回复) → TTS(文字→语音)</div></div>
+      <div class="flow-step"><div class="flow-num ws">5</div><div class="flow-text"><strong>xiaozhi-server → Gateway</strong>：通过 WebSocket 返回 TTS 音频（含16字节头部）+ LLM 文本</div></div>
+      <div class="flow-step"><div class="flow-num udp">6</div><div class="flow-text"><strong>Gateway → ESP32</strong>：剥离16字节头部，通过 UDP :8884 将纯 Opus 音频回传</div></div>
+      <div class="flow-step"><div class="flow-num mqtt">7</div><div class="flow-text"><strong>Gateway → ESP32</strong>：通过 MQTT 发送状态消息（LLM文本、TTS状态等）<br><code>subscribe_topic: "devices/p2p/设备MAC"</code></div></div>
+    `;
+  }
+  if (tab === 'arch') {
+    title.textContent = '③ 架构总览 · 各服务职责';
+    content.innerHTML = `
+      <div class="flow-step"><div class="flow-num key">★</div><div class="flow-text"><strong>MQTT Gateway 是协议翻译层</strong><br>对 ESP32 说：我是 MQTT Broker(:1883) + UDP 服务器(:8884)<br>对 xiaozhi-server 说：我是一个普通 WebSocket 客户端<br><strong>服务端代码完全不用改</strong></div></div>
+      <div class="flow-step"><div class="flow-num key">★</div><div class="flow-text"><strong>需要的端口</strong>：<code>:1883</code> MQTT(TCP) · <code>:8884</code> UDP音频 · <code>:8007</code> 管理API</div></div>
+      <div class="flow-step"><div class="flow-num key">★</div><div class="flow-text"><strong>配置来源</strong>：MQTT 凭证通过 OTA 接口下发<br>智控台参数管理中配置 <code>server.mqtt_gateway</code>（Broker地址）、<code>server.udp_gateway</code>（UDP地址）、<code>server.mqtt_signature_key</code>（签名密钥）</div></div>
+      <div class="flow-step"><div class="flow-num key">★</div><div class="flow-text"><strong>Topic 设计</strong>：<br>设备发布 → <code>device-server</code>（所有设备共用）<br>设备订阅 → <code>devices/p2p/{设备MAC}</code>（每设备独立）</div></div>
+    `;
+  }
+}));
+
+highlight('boot');
+</script>
+
+</body>
+</html>
